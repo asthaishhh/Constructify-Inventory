@@ -15,6 +15,7 @@ import Orders from "../pages/Orders";
 import Inventory from "../pages/Inventory";
 import Overview from "../pages/Overview";
 import Employees from "../pages/Employees";
+import Customers from "../pages/Customers";
 import Transportation from "../pages/Transportation";
 import Settings from "../pages/Settings";
 import RegisterCompany from "../pages/RegisterCompany";
@@ -141,6 +142,15 @@ function AppContent({ collapsed, setCollapsed }) {
                     element={
                       <ProtectedRoute>
                         <Inventory />
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  <Route
+                    path="/customers"
+                    element={
+                      <ProtectedRoute>
+                        <Customers />
                       </ProtectedRoute>
                     }
                   />
