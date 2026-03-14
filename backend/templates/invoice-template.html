@@ -120,7 +120,6 @@
       print-color-adjust: exact;
     }
 
-    /* ── Page shell ──────────────────────────────────────────── */
     .page {
       width: 210mm;
       min-height: 297mm;
@@ -133,7 +132,6 @@
       overflow: hidden;
     }
 
-    /* Top accent bar */
     .page::before {
       content: '';
       position: absolute;
@@ -143,7 +141,6 @@
       z-index: 2;
     }
 
-    /* Subtle bg glow */
     .page::after {
       content: '';
       position: absolute;
@@ -155,7 +152,6 @@
       z-index: 0;
     }
 
-    /* ── Inner layout ─────────────────────────────────────────── */
     .inner {
       padding: 14mm 16mm 12mm;
       position: relative;
@@ -167,7 +163,6 @@
 
     .content { flex: 1; }
 
-    /* ── Header ──────────────────────────────────────────────── */
     header {
       display: flex;
       justify-content: space-between;
@@ -181,7 +176,6 @@
     .brand { display: flex; align-items: flex-start; gap: 14px; min-width: 0; }
     .brand-identity { display: flex; flex-direction: column; gap: 5px; }
 
-    /* ── Logo slot ────────────────────────────────────────────── */
     .logo-slot {
       width: 54px; height: 54px;
       border-radius: 10px;
@@ -195,17 +189,8 @@
       gap: 3px;
     }
     .logo-slot svg  { opacity: .4; }
-    .logo-slot span {
-      font-size: 7.5px; font-weight: 600;
-      letter-spacing: 1px; text-transform: uppercase;
-      color: var(--teal); opacity: .5;
-    }
-    .logo-image {
-      width: 100%;
-      height: 100%;
-      object-fit: contain;
-      border-radius: 10px;
-    }
+    .logo-slot span { font-size: 7.5px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: var(--teal); opacity: .5; }
+    .logo-image { width: 100%; height: 100%; object-fit: contain; border-radius: 10px; }
 
     .brand-name {
       font-family: 'Playfair Display', serif;
@@ -214,76 +199,41 @@
     }
     .brand-name span { color: var(--saffron); }
 
-    .brand-tagline {
-      font-size: 9.5px; font-weight: 500;
-      letter-spacing: 2.5px; text-transform: uppercase; color: var(--muted);
-    }
-
+    .brand-tagline { font-size: 9.5px; font-weight: 500; letter-spacing: 2.5px; text-transform: uppercase; color: var(--muted); }
     .brand-addr { font-size: 10.5px; color: var(--muted); line-height: 1.7; margin-top: 8px; }
 
-    /* ── GSTIN badge in header ────────────────────────────────── */
     .brand-gstin {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      margin-top: 8px;
-      background: var(--teal-lt);
-      border: 1px solid #c5dfe7;
-      border-radius: 6px;
-      padding: 4px 10px;
-      width: fit-content;
+      display: inline-flex; align-items: center; gap: 6px;
+      margin-top: 8px; background: var(--teal-lt);
+      border: 1px solid #c5dfe7; border-radius: 6px;
+      padding: 4px 10px; width: fit-content;
     }
-    .brand-gstin-label {
-      font-size: 8.5px;
-      font-weight: 700;
-      letter-spacing: 1.5px;
-      text-transform: uppercase;
-      color: var(--teal);
-      opacity: .7;
-    }
-    .brand-gstin-value {
-      font-size: 10.5px;
-      font-weight: 600;
-      color: var(--teal);
-      letter-spacing: 0.5px;
-      font-family: 'DM Sans', monospace;
-    }
+    .brand-gstin-label { font-size: 8.5px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--teal); opacity: .7; }
+    .brand-gstin-value { font-size: 10.5px; font-weight: 600; color: var(--teal); letter-spacing: 0.5px; font-family: 'DM Sans', monospace; }
 
     .invoice-badge { text-align: right; flex-shrink: 0; }
-
-    .invoice-word {
-      font-family: 'Playfair Display', serif;
-      font-size: 38px; font-weight: 700;
-      color: var(--teal); letter-spacing: -1px; line-height: 1;
-    }
-
+    .invoice-word { font-family: 'Playfair Display', serif; font-size: 38px; font-weight: 700; color: var(--teal); letter-spacing: -1px; line-height: 1; }
     .invoice-meta { margin-top: 10px; display: flex; flex-direction: column; gap: 3px; }
-
-    .invoice-meta-row {
-      font-size: 11px; color: var(--muted);
-      display: flex; justify-content: flex-end; gap: 6px;
-    }
+    .invoice-meta-row { font-size: 11px; color: var(--muted); display: flex; justify-content: flex-end; gap: 6px; }
     .invoice-meta-row strong { color: var(--ink); font-weight: 600; }
 
-    /* ── Info cards ───────────────────────────────────────────── */
-    .info-row {
-      display: grid; grid-template-columns: 1fr 1fr;
-      gap: 14px; margin-bottom: 26px;
-    }
+    /* ── Info cards (2-column grid) ── */
+    .info-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 26px; }
 
-    .card {
-      border: 1px solid var(--rule);
-      border-radius: 10px; padding: 14px 16px; background: var(--white);
-    }
-
-    .card-label {
-      font-size: 9px; font-weight: 600;
-      letter-spacing: 2px; text-transform: uppercase;
-      color: var(--saffron); margin-bottom: 8px;
-    }
-
+    .card { border: 1px solid var(--rule); border-radius: 10px; padding: 14px 16px; background: var(--white); }
+    .card-label { font-size: 9px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: var(--saffron); margin-bottom: 8px; }
     .card h3 { font-size: 14px; font-weight: 600; color: var(--ink); margin-bottom: 5px; }
     .card p  { font-size: 11px; color: var(--muted); line-height: 1.65; }
+
+    /* Client GSTIN badge (inside Bill To card) */
+    .client-gstin {
+      display: inline-flex; align-items: center; gap: 5px;
+      margin-top: 8px; background: var(--teal-lt);
+      border: 1px solid #c5dfe7; border-radius: 5px;
+      padding: 3px 8px; width: fit-content;
+    }
+    .client-gstin-label { font-size: 8px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: var(--teal); opacity: .7; }
+    .client-gstin-value { font-size: 10px; font-weight: 600; color: var(--teal); letter-spacing: 0.4px; font-family: 'DM Sans', monospace; }
 
     .status-pill {
       display: inline-flex; align-items: center; gap: 5px;
@@ -304,137 +254,59 @@
     .detail-row .label { color: var(--muted); }
     .detail-row .value { font-weight: 600; color: var(--ink); text-align: right; }
 
-    /* ── Line-items table ─────────────────────────────────────── */
     table { width: 100%; border-collapse: collapse; font-size: 11.5px; margin-bottom: 18px; }
-
     thead { display: table-header-group; }
     thead tr { background: var(--teal); -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-
-    thead th {
-      color: var(--white); font-weight: 500;
-      font-size: 10px; letter-spacing: 1.2px; text-transform: uppercase;
-      padding: 11px 12px; text-align: left;
-    }
+    thead th { color: var(--white); font-weight: 500; font-size: 10px; letter-spacing: 1.2px; text-transform: uppercase; padding: 11px 12px; text-align: left; }
     thead th:first-child { border-radius: 8px 0 0 0; }
     thead th:last-child  { border-radius: 0 8px 0 0; text-align: right; }
     thead th.num         { text-align: right; }
-
     tbody tr:nth-child(even) td { background: #fafafa; }
     tbody tr:hover td { background: var(--teal-lt); transition: background .15s; }
     tbody tr, td, th  { page-break-inside: avoid; break-inside: avoid; }
-
-    tbody td {
-      padding: 11px 12px; border-bottom: 1px solid var(--rule);
-      color: var(--ink); vertical-align: top;
-    }
+    tbody td { padding: 11px 12px; border-bottom: 1px solid var(--rule); color: var(--ink); vertical-align: top; }
     tbody td:last-child { text-align: right; font-weight: 500; }
     tbody td.num        { text-align: right; color: var(--muted); }
-
     .item-name { font-weight: 500; }
     .item-desc { font-size: 10px; color: var(--muted); margin-top: 2px; }
 
-    /* ── Amount in Words ──────────────────────────────────────── */
     .amount-words {
-      display: flex;
-      align-items: baseline;
-      gap: 10px;
+      display: flex; align-items: baseline; gap: 10px;
       background: var(--saffron-lt);
       border: 1px solid #f0d4b0;
       border-left: 3px solid var(--saffron);
       border-radius: 8px;
-      padding: 10px 14px;
-      margin-bottom: 16px;
-      page-break-inside: avoid;
-      break-inside: avoid;
-    }
-
-    .amount-words-label {
-      font-size: 9px;
-      font-weight: 700;
-      letter-spacing: 1.8px;
-      text-transform: uppercase;
-      color: var(--saffron);
-      white-space: nowrap;
-      flex-shrink: 0;
-    }
-
-    .amount-words-value {
-      font-size: 11.5px;
-      font-weight: 500;
-      color: var(--ink);
-      font-style: italic;
-      line-height: 1.4;
-    }
-
-    /* ── Totals ───────────────────────────────────────────────── */
-    .totals-wrap {
-      display: flex; justify-content: flex-end;
-      margin-bottom: 22px;
+      padding: 10px 14px; margin-bottom: 16px;
       page-break-inside: avoid; break-inside: avoid;
     }
+    .amount-words-label { font-size: 9px; font-weight: 700; letter-spacing: 1.8px; text-transform: uppercase; color: var(--saffron); white-space: nowrap; flex-shrink: 0; }
+    .amount-words-value { font-size: 11.5px; font-weight: 500; color: var(--ink); font-style: italic; line-height: 1.4; }
 
+    .totals-wrap { display: flex; justify-content: flex-end; margin-bottom: 22px; page-break-inside: avoid; break-inside: avoid; }
     .totals { width: 280px; max-width: 100%; display: flex; flex-direction: column; }
-
-    .totals-line {
-      display: flex; justify-content: space-between;
-      font-size: 11.5px; padding: 7px 0;
-      border-bottom: 1px solid var(--rule); gap: 12px;
-    }
+    .totals-line { display: flex; justify-content: space-between; font-size: 11.5px; padding: 7px 0; border-bottom: 1px solid var(--rule); gap: 12px; }
     .totals-line .lbl { color: var(--muted); }
     .totals-line .val { font-weight: 500; text-align: right; }
-
     .totals-grand {
       display: flex; justify-content: space-between; align-items: center;
-      margin-top: 10px;
-      background: var(--teal); color: var(--white);
+      margin-top: 10px; background: var(--teal); color: var(--white);
       border-radius: 8px; padding: 12px 16px; gap: 12px;
       -webkit-print-color-adjust: exact; print-color-adjust: exact;
     }
-    .totals-grand .lbl {
-      font-size: 10px; letter-spacing: 2px;
-      text-transform: uppercase; font-weight: 500; opacity: .85;
-    }
-    .totals-grand .val {
-      font-family: 'Playfair Display', serif;
-      font-size: 20px; font-weight: 700; letter-spacing: -0.5px; text-align: right;
-    }
+    .totals-grand .lbl { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; font-weight: 500; opacity: .85; }
+    .totals-grand .val { font-family: 'Playfair Display', serif; font-size: 20px; font-weight: 700; letter-spacing: -0.5px; text-align: right; }
 
-    /* ── Footer ───────────────────────────────────────────────── */
-    footer {
-      margin-top: auto;
-      border-top: 1px solid var(--rule);
-      padding-top: 14px;
-      page-break-inside: avoid;
-      break-inside: avoid;
-    }
-
-    footer .note {
-      font-size: 10px; color: var(--muted); line-height: 1.6; margin-bottom: 14px;
-    }
+    footer { margin-top: auto; border-top: 1px solid var(--rule); padding-top: 14px; page-break-inside: avoid; break-inside: avoid; }
+    footer .note { font-size: 10px; color: var(--muted); line-height: 1.6; margin-bottom: 14px; }
     footer .note strong { color: var(--ink); display: block; font-size: 11px; margin-bottom: 2px; }
+    .thank-wrap { border-top: 1px solid var(--rule); padding-top: 12px; text-align: center; }
+    footer .thank { font-family: 'Playfair Display', serif; font-size: 13px; color: var(--teal); font-weight: 700; }
 
-    .thank-wrap {
-      border-top: 1px solid var(--rule);
-      padding-top: 12px;
-      text-align: center;
-    }
-    footer .thank {
-      font-family: 'Playfair Display', serif;
-      font-size: 13px; color: var(--teal); font-weight: 700;
-    }
-
-    /* ── Print ────────────────────────────────────────────────── */
     @page { size: A4; margin: 0; }
-
     @media print {
       html, body { background: white !important; }
-
-      .page {
-        width: 100%; min-height: 100vh;
-        margin: 0; box-shadow: none; overflow: visible;
-      }
+      .page { width: 100%; min-height: 100vh; margin: 0; box-shadow: none; overflow: visible; }
       .page::after { display: none !important; }
-
       thead { display: table-header-group; }
       tfoot { display: table-footer-group; }
       tr, td, th { page-break-inside: avoid; break-inside: avoid; }
@@ -457,7 +329,6 @@
                 {{companyAddress}}<br>
                 {{companyEmail}} &nbsp;·&nbsp; {{companyPhone}}
               </div>
-              <!-- GSTIN badge – now in header alongside company details -->
               <div class="brand-gstin">
                 <span class="brand-gstin-label">GSTIN</span>
                 <span class="brand-gstin-value">{{companyGstin}}</span>
@@ -477,12 +348,20 @@
 
         <!-- ── INFO CARDS ── -->
         <div class="info-row">
+
+          <!-- Bill To: all fields from client DB record -->
           <div class="card">
             <div class="card-label">Bill To</div>
             <h3>{{clientName}}</h3>
             <p>{{clientAddress}}</p>
             <p style="margin-top:6px">{{clientEmail}}<br>{{clientPhone}}</p>
+            <div class="client-gstin">
+              <span class="client-gstin-label">GSTIN</span>
+              <span class="client-gstin-value">{{clientGstin}}</span>
+            </div>
           </div>
+
+          <!-- Invoice Details: status + due date (invoice no & issued date already in header) -->
           <div class="card">
             <div class="card-label">Invoice Details</div>
             <div class="detail-row">
@@ -490,14 +369,11 @@
               <span class="value"><span class="status-pill due">{{status}}</span></span>
             </div>
             <div class="detail-row">
-              <span class="label">Client GSTIN</span>
-              <span class="value">{{gstin}}</span>
-            </div>
-            <div class="detail-row">
-              <span class="label">Payment Terms</span>
-              <span class="value">{{paymentTerms}}</span>
+              <span class="label">Due Date</span>
+              <span class="value">{{dueDate}}</span>
             </div>
           </div>
+
         </div>
 
         <!-- ── LINE ITEMS ── -->
@@ -506,9 +382,10 @@
             <tr>
               <th style="width:32px">#</th>
               <th>Material / Description</th>
-              <th class="num" style="width:70px">Qty</th>
-              <th class="num" style="width:100px">Rate (₹)</th>
-              <th style="width:110px">Amount (₹)</th>
+              <th class="num" style="width:60px">HSN</th>
+              <th class="num" style="width:60px">Qty</th>
+              <th class="num" style="width:90px">Rate (₹)</th>
+              <th style="width:100px">Amount (₹)</th>
             </tr>
           </thead>
           <tbody>
@@ -516,10 +393,15 @@
           </tbody>
         </table>
 
-        <!-- ── AMOUNT IN WORDS ── -->
+        <!-- ── AMOUNT IN WORDS ──
+             The JS engine below reads data-total from #grand-total and
+             writes the full Indian-format words here automatically.
+             Your template only needs to set {{total}} — no separate
+             amountInWords variable required.
+        -->
         <div class="amount-words">
           <span class="amount-words-label">Amount in Words</span>
-          <span class="amount-words-value">{{amountInWords}}</span>
+          <span class="amount-words-value" id="amount-in-words-text">—</span>
         </div>
 
         <!-- ── TOTALS ── -->
@@ -539,7 +421,9 @@
             </div>
             <div class="totals-grand">
               <span class="lbl">Total Due</span>
-              <span class="val">₹{{total}}</span>
+              <!-- data-total must be the plain numeric value, e.g. 123456.78
+                   Your template engine sets both the display text and data-total. -->
+              <span class="val" id="grand-total" data-total="{{total}}">₹{{total}}</span>
             </div>
           </div>
         </div>
@@ -560,5 +444,69 @@
 
     </div><!-- /.inner -->
   </div><!-- /.page -->
+
+  <!--
+  ═══════════════════════════════════════════════════════════════
+    AMOUNT-IN-WORDS ENGINE  —  Indian Rupee format
+    • Reads  : data-total attribute on #grand-total  (plain number, e.g. "123456.78")
+    • Writes : #amount-in-words-text
+    • Format : "Rupees One Lakh Twenty-Three Thousand Four Hundred
+                Fifty-Six and Seventy-Eight Paise Only"
+    • Covers : up to 99,99,99,999.99
+    No external library needed.
+  ═══════════════════════════════════════════════════════════════
+  -->
+  <script>
+    (function () {
+      var ones = [
+        '', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine',
+        'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen',
+        'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'
+      ];
+      var tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+
+      function twoDigits(n) {
+        if (n < 20) return ones[n];
+        return tens[Math.floor(n / 10)] + (n % 10 ? '-' + ones[n % 10] : '');
+      }
+
+      function threeDigits(n) {
+        if (n === 0) return '';
+        if (n < 100) return twoDigits(n);
+        return ones[Math.floor(n / 100)] + ' Hundred' + (n % 100 ? ' ' + twoDigits(n % 100) : '');
+      }
+
+      function integerToWords(n) {
+        if (n === 0) return 'Zero';
+        var parts = [];
+        var crore = Math.floor(n / 10000000); n %= 10000000;
+        if (crore)    parts.push(threeDigits(crore)    + ' Crore');
+        var lakh = Math.floor(n / 100000);    n %= 100000;
+        if (lakh)     parts.push(threeDigits(lakh)     + ' Lakh');
+        var thou = Math.floor(n / 1000);      n %= 1000;
+        if (thou)     parts.push(threeDigits(thou)     + ' Thousand');
+        if (n)        parts.push(threeDigits(n));
+        return parts.join(' ');
+      }
+
+      function rupeesToWords(amount) {
+        var num = parseFloat(String(amount).replace(/,/g, ''));
+        if (isNaN(num) || num < 0) return '—';
+        var rupees = Math.floor(num);
+        var paise  = Math.round((num - rupees) * 100);
+        var result = 'Rupees ' + integerToWords(rupees);
+        if (paise > 0) result += ' and ' + twoDigits(paise) + ' Paise';
+        return result + ' Only';
+      }
+
+      document.addEventListener('DOMContentLoaded', function () {
+        var totalEl = document.getElementById('grand-total');
+        var wordsEl = document.getElementById('amount-in-words-text');
+        if (!totalEl || !wordsEl) return;
+        var raw = (totalEl.getAttribute('data-total') || totalEl.textContent || '').replace(/[₹\s,]/g, '');
+        wordsEl.textContent = rupeesToWords(raw);
+      });
+    })();
+  </script>
 </body>
 </html>

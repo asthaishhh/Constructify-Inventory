@@ -273,7 +273,7 @@ export default function RegisterCompany() {
             >
               <input
                 type="text"
-                placeholder="e.g. Building trust, one project at a time"
+                placeholder="Wholesale and Distibution"
                 className={inputClass("companyTagline")}
                 {...field("companyTagline")}
               />

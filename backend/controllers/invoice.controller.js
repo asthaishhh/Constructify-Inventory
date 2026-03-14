@@ -321,6 +321,10 @@ export const generateInvoicePdfBuffer = async (invoiceId, rawCompanyProfile = {}
   const clientAddress = invoice.clientAddress || (invoice.customer && invoice.customer.address) || "";
   const clientEmail = invoice.clientEmail || (invoice.customer && invoice.customer.email) || "";
   const clientPhone = invoice.clientPhone || (invoice.customer && invoice.customer.phone) || "";
+  const clientGstin =
+    invoice.clientGstin ||
+    (invoice.customer && (invoice.customer.gstNumber || invoice.customer.gstIn || invoice.customer.gstin)) ||
+    "";
 
   const itemsHtml = (invoice.materials || []).map((it, i) => {
     const name = it.name || (it.material && (it.material.name || it.material.materialName)) || "—";
@@ -387,6 +391,7 @@ export const generateInvoicePdfBuffer = async (invoiceId, rawCompanyProfile = {}
   tpl = tpl.replace(/{{clientAddress}}/g, clientAddress.replace(/\n/g, ", "));
   tpl = tpl.replace(/{{clientEmail}}/g, clientEmail || "");
   tpl = tpl.replace(/{{clientPhone}}/g, clientPhone || "");
+  tpl = tpl.replace(/{{clientGstin}}/g, escapeHtml(clientGstin));
   tpl = tpl.replace(/{{status}}/g, (invoice.status || "pending").toUpperCase());
   tpl = tpl.replace(/{{amount}}/g, Number(total).toLocaleString("en-IN", { minimumFractionDigits: 2 }));
   tpl = tpl.replace(/{{items}}/g, itemsHtml);
