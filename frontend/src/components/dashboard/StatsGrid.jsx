@@ -1,9 +1,7 @@
 
 import { ArrowDownRight, ArrowRight, ArrowUpRight, Eye, ReceiptIndianRupee, ShoppingCart, Users } from "lucide-react";
 import React, { useState, useEffect } from "react";
-import axios from "../../utils/axiosConfig";
-
-const API_URL = import.meta.env.VITE_API_URL || '';
+import { getDashboardAnalytics } from "../../api/dashboard.api";
 
 const StatsGrid = () => {
   // replaced totalOrders with customerOrders
@@ -17,24 +15,16 @@ const StatsGrid = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Fetch orders for revenue and customer orders count
-        const ordersRes = await axios.get(`${API_URL}/api/dashboard-orders`);
-        const allOrders = Array.isArray(ordersRes.data) ? ordersRes.data : [];
-        const customersCount = allOrders.filter((o) => o.type === "customers").length;
-        setCustomerOrders(customersCount);
+        const analytics = await getDashboardAnalytics();
+        const summary = analytics?.summary || {};
 
-        // Calculate total revenue from all orders
-        const revenue = allOrders.reduce((sum, order) => sum + (order.quantity * order.price || 0), 0);
-        setTotalRevenue(revenue);
-
-        // Fetch employees for cost
-        const employeesRes = await axios.get(`${API_URL}/api/employees`);
-        const employees = Array.isArray(employeesRes.data) ? employeesRes.data : [];
-        const cost = employees.reduce((sum, emp) => sum + (emp.salary || 0), 0);
-        setTotalCost(cost);
-
-        // Calculate profit
+        const revenue = Number(summary.totalRevenue || 0);
+        const cost = Number(summary.orderRevenue || 0);
         const profit = revenue - cost;
+
+        setCustomerOrders(Number(summary.totalOrders || 0));
+        setTotalRevenue(revenue);
+        setTotalCost(cost);
         setTotalProfit(profit);
 
       } catch (err) {

@@ -1,20 +1,25 @@
 import React from 'react';
+import { useEffect, useState } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
-
-const data = [
-  { name: "Cement", value: 45, color: "#8B7E74" },
-  { name: "Bricks", value: 30, color: "#E74C3C" },
-  { name: "Sand", value: 15, color: "#D4AF37" },
-  { name: "Iron Rods", value: 10, color: "#7F8C8D" },
-  { name: "Gravel", value: 8, color: "#A78BFA" },
-  { name: "Tiles", value: 12, color: "#1ABC9C" },
-  { name: "Steel Pipes", value: 6, color: "#5DADE2" },
-  { name: "Plywood", value: 5, color: "#F39C12" },
-  { name: "Concrete Mix", value: 7, color: "#C0392B" }
-];
-
+import { getDashboardAnalytics } from "../../api/dashboard.api";
 
 const SalesChart = () => {
+  const [data, setData] = useState([]);
+
+  useEffect(() => {
+    const loadAnalytics = async () => {
+      try {
+        const analytics = await getDashboardAnalytics();
+        setData(Array.isArray(analytics?.salesByCategory) ? analytics.salesByCategory : []);
+      } catch (error) {
+        console.error("Failed to load sales category data", error);
+        setData([]);
+      }
+    };
+
+    loadAnalytics();
+  }, []);
+
   return (
     <div className="bg-white dark:bg-slate-900 backdrop-blur-xl rounded-b-2xl p-6 border border-slate-200/50 dark:border-slate-700/50">
       <div className="mb-6">

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   BrowserRouter as Router,
   Routes,
@@ -23,9 +23,55 @@ import ConstructifyAnalytics from "../pages/Overview";
 
 import Login from "../pages/auth/Login";
 import Signup from "../pages/auth/Signup";
+import { warmupBackendHealth } from "../api/health.api";
 
 function App() {
   const [collapsed, setCollapsed] = useState(false);
+  const [isWarmupDone, setIsWarmupDone] = useState(false);
+  const [warmupError, setWarmupError] = useState("");
+
+  const runWarmup = async () => {
+    setWarmupError("");
+    try {
+      await warmupBackendHealth();
+      setIsWarmupDone(true);
+    } catch (error) {
+      setWarmupError("Backend is still waking up. Please retry.");
+      setIsWarmupDone(false);
+    }
+  };
+
+  useEffect(() => {
+    runWarmup();
+  }, []);
+
+  if (!isWarmupDone) {
+    return (
+      <div className="min-h-screen bg-slate-100 dark:bg-slate-900 flex items-center justify-center px-6">
+        <div className="w-full max-w-md rounded-2xl bg-white dark:bg-slate-800 shadow-xl p-6 border border-slate-200 dark:border-slate-700">
+          <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100 mb-2">Starting Constructify</h2>
+          <p className="text-sm text-slate-600 dark:text-slate-300 mb-4">
+            Checking backend health before loading dashboard data.
+          </p>
+          <div className="h-2 w-full bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden mb-4">
+            <div className="h-full w-2/3 bg-gradient-to-r from-cyan-500 to-indigo-500 animate-pulse" />
+          </div>
+          {warmupError ? (
+            <div className="space-y-3">
+              <p className="text-sm text-red-600 dark:text-red-400">{warmupError}</p>
+              <button
+                type="button"
+                onClick={runWarmup}
+                className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium"
+              >
+                Retry Health Check
+              </button>
+            </div>
+          ) : null}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <Router>

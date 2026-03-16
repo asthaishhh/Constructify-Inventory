@@ -1,4 +1,5 @@
 import React from 'react';
+import { useEffect, useState } from 'react';
 import {
   BarChart,
   Bar,
@@ -8,23 +9,24 @@ import {
   ResponsiveContainer,
   Tooltip
 } from "recharts";
+import { getDashboardAnalytics } from "../../api/dashboard.api";
 
 const RevenueChart = () => {
+  const [revenueData, setRevenueData] = useState([]);
 
-  const RevenueData = [
-    { month: 'Jan', revenue: 45000, expenses: 32000, profit: 13000 },
-    { month: 'Feb', revenue: 52000, expenses: 38000, profit: 14000 },
-    { month: 'Mar', revenue: 48000, expenses: 35000, profit: 13000 },
-    { month: 'Apr', revenue: 61000, expenses: 42000, profit: 19000 },
-    { month: 'May', revenue: 55000, expenses: 39000, profit: 16000 },
-    { month: 'Jun', revenue: 48000, expenses: 36000, profit: 12000 },
-    { month: 'Jul', revenue: 68000, expenses: 45000, profit: 23000 },
-    { month: 'Aug', revenue: 72000, expenses: 48000, profit: 24000 },
-    { month: 'Sep', revenue: 89000, expenses: 62000, profit: 27000 },
-    { month: 'Oct', revenue: 98000, expenses: 68000, profit: 30000 },
-    { month: 'Nov', revenue: 34000, expenses: 28000, profit: 6000 },
-    { month: 'Dec', revenue: 75000, expenses: 52000, profit: 23000 }
-  ];
+  useEffect(() => {
+    const loadAnalytics = async () => {
+      try {
+        const analytics = await getDashboardAnalytics();
+        setRevenueData(Array.isArray(analytics?.revenueTrend) ? analytics.revenueTrend : []);
+      } catch (error) {
+        console.error("Failed to load revenue chart data", error);
+        setRevenueData([]);
+      }
+    };
+
+    loadAnalytics();
+  }, []);
 
   return (
     <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl rounded-2xl border border-slate-200/50 dark:border-slate-700/50 p-6">
@@ -58,7 +60,7 @@ const RevenueChart = () => {
       <div className="h-[400px]">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
-            data={RevenueData}
+            data={revenueData}
             margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
           >
             <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f8" opacity={0.3} />

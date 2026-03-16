@@ -1,6 +1,6 @@
 import React from 'react';
 import { useState, useEffect } from "react";
-import axios from "../utils/axiosConfig";
+import { getDashboardAnalytics } from "../api/dashboard.api";
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, RadialBarChart, RadialBar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Area, AreaChart } from 'recharts';
 import { TrendingUp, TrendingDown, ReceiptIndianRupee, ShoppingCart, Package, AlertTriangle } from 'lucide-react';
 
@@ -23,8 +23,6 @@ const ConstructifyAnalytics = () => {
   const [lowStock, setLowStock] = useState(0);
   const [statsLoading, setStatsLoading] = useState(true);
 
-  const API_URL = import.meta.env.VITE_API_URL || '';
-
   // ✅ Dark mode effect
   useEffect(() => {
     if (darkMode) {
@@ -34,68 +32,30 @@ const ConstructifyAnalytics = () => {
     }
   }, [darkMode]);
 
-  // ✅ Function to fetch chart by type
-  const fetchChartData = async (type) => {
-    try {
-      const res = await axios.get(`${API_URL}/api/charts/${type}`);
-      return res.data.data; // assuming your backend sends { data: [...] }
-    } catch (err) {
-      console.error(`Failed to fetch ${type}:`, err);
-      return [];
-    }
-  };
-
   useEffect(() => {
-    const loadData = async () => {
-      const revenueExpenses = await fetchChartData("revenueExpenses");
-      const salesCategory = await fetchChartData("salesByCategory");
-      const profitMargin = await fetchChartData("profitMargin");
-      const orderStatus = await fetchChartData("orderStatus");
-      const stockLevels = await fetchChartData("stockLevels");
-      const expenseBreakdown = await fetchChartData("expenseBreakdown"); // ✅ fetch
-
-      setRevenueData(revenueExpenses);      // For your main chart
-      setSalesCategoryData(salesCategory);  // For pie chart
-      setProfitMarginData(profitMargin);    // For bar chart
-      setOrderStatusData(orderStatus);      // For pie chart
-      setStockLevelsData(stockLevels);      // For stock bars
-      setExpenseBreakdownData(expenseBreakdown);
-    };
-    loadData();
-  }, []);
-
-  // ✅ Fetch dynamic stats from other components' data sources
-  useEffect(() => {
-    const fetchStats = async () => {
+    const loadAnalytics = async () => {
       try {
         setStatsLoading(true);
+        const analytics = await getDashboardAnalytics();
 
-        // Fetch orders for revenue and total orders count
-        const ordersRes = await axios.get(`${API_URL}/api/dashboard-orders`);
-        const allOrders = Array.isArray(ordersRes.data) ? ordersRes.data : [];
-        const customersCount = allOrders.filter((o) => o.type === "customers").length;
-        setTotalOrders(customersCount);
+        setRevenueData(Array.isArray(analytics?.revenueTrend) ? analytics.revenueTrend : []);
+        setSalesCategoryData(Array.isArray(analytics?.salesByCategory) ? analytics.salesByCategory : []);
+        setProfitMarginData(Array.isArray(analytics?.profitMarginTrend) ? analytics.profitMarginTrend : []);
+        setOrderStatusData(Array.isArray(analytics?.orderStatus) ? analytics.orderStatus : []);
+        setStockLevelsData(Array.isArray(analytics?.stockLevels) ? analytics.stockLevels : []);
+        setExpenseBreakdownData(Array.isArray(analytics?.expenseBreakdown) ? analytics.expenseBreakdown : []);
 
-        // Calculate total revenue from all orders
-        const revenue = allOrders.reduce((sum, order) => sum + (order.quantity * order.price || 0), 0);
-        setTotalRevenue(revenue);
-
-        // Fetch materials for low stock count
-        const materialsRes = await axios.get(`${API_URL}/api/materials`);
-        const materials = Array.isArray(materialsRes.data) ? materialsRes.data : [];
-        const getStockStatus = (material) => {
-          if (material.quantity < material.minStock * 0.5) {
-            return { status: "Critical" };
-          } else if (material.quantity < material.minStock) {
-            return { status: "Low Stock" };
-          }
-          return { status: "In Stock" };
-        };
-        const lowStockCount = materials.filter(m => getStockStatus(m).status === "Low Stock").length;
-        setLowStock(lowStockCount);
-
+        setTotalRevenue(Number(analytics?.summary?.totalRevenue || 0));
+        setTotalOrders(Number(analytics?.summary?.totalOrders || 0));
+        setLowStock(Number(analytics?.summary?.lowStockCount || 0));
       } catch (err) {
-        console.error("Error fetching stats:", err);
+        console.error("Error fetching analytics:", err);
+        setRevenueData([]);
+        setSalesCategoryData([]);
+        setProfitMarginData([]);
+        setOrderStatusData([]);
+        setStockLevelsData([]);
+        setExpenseBreakdownData([]);
         setTotalRevenue(0);
         setTotalOrders(0);
         setLowStock(0);
@@ -104,7 +64,7 @@ const ConstructifyAnalytics = () => {
       }
     };
 
-    fetchStats();
+    loadAnalytics();
   }, []);
 
   const getChartData = () => {
