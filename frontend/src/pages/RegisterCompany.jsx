@@ -10,6 +10,7 @@ import {
   CheckCircle,
   X,
   Save,
+  Lock,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { loadCompanyProfile, saveCompanyProfile } from "../utils/companyProfile";
@@ -23,6 +24,8 @@ const INITIAL_STATE = {
   address: "",
   phone: "",
   email: "",
+  password: "",
+  confirmPassword: "",
 };
 
 export default function RegisterCompany() {
@@ -117,6 +120,13 @@ export default function RegisterCompany() {
       newErrors.email = "Email address is required.";
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
       newErrors.email = "Enter a valid email address.";
+    }
+    // password validation (min length and match)
+    if (!form.password || String(form.password).length < 6) {
+      newErrors.password = "Password must be at least 6 characters.";
+    }
+    if (form.password !== form.confirmPassword) {
+      newErrors.confirmPassword = "Passwords do not match.";
     }
     return newErrors;
   };
@@ -257,11 +267,11 @@ export default function RegisterCompany() {
               icon={Building2}
               error={errors.companyName}
             >
-              <input
-                type="text"
+              <textarea
+                rows={1}
                 placeholder="e.g. Constructify Pvt. Ltd."
                 autoComplete="organization"
-                className={inputClass("companyName")}
+                className={`${inputClass("companyName")} resize-none`}
                 {...field("companyName")}
               />
             </InputWrapper>
@@ -271,10 +281,10 @@ export default function RegisterCompany() {
               icon={Building2}
               error={errors.companyTagline}
             >
-              <input
-                type="text"
+              <textarea
+                rows={1}
                 placeholder="Wholesale and Distibution"
-                className={inputClass("companyTagline")}
+                className={`${inputClass("companyTagline")} resize-none`}
                 {...field("companyTagline")}
               />
             </InputWrapper>
@@ -285,11 +295,11 @@ export default function RegisterCompany() {
               icon={User}
               error={errors.ownerName}
             >
-              <input
-                type="text"
+              <textarea
+                rows={1}
                 placeholder="e.g. Rajesh Sharma"
                 autoComplete="name"
-                className={inputClass("ownerName")}
+                className={`${inputClass("ownerName")} resize-none`}
                 {...field("ownerName")}
               />
             </InputWrapper>
@@ -299,10 +309,10 @@ export default function RegisterCompany() {
               icon={Building2}
               error={errors.gstIn}
             >
-              <input
-                type="text"
+              <textarea
+                rows={1}
                 placeholder="e.g. 22AAAAA0000A1Z5"
-                className={inputClass("gstIn")}
+                className={`${inputClass("gstIn")} resize-none`}
                 value={form.gstIn}
                 onChange={(e) => {
                   const nextValue = e.target.value.toUpperCase();
@@ -349,11 +359,11 @@ export default function RegisterCompany() {
                 icon={Phone}
                 error={errors.phone}
               >
-                <input
-                  type="tel"
+                <textarea
+                  rows={1}
                   placeholder="+91 9876543210"
                   autoComplete="tel"
-                  className={inputClass("phone")}
+                  className={`${inputClass("phone")} resize-none`}
                   {...field("phone")}
                 />
               </InputWrapper>
@@ -363,12 +373,36 @@ export default function RegisterCompany() {
                 icon={Mail}
                 error={errors.email}
               >
-                <input
-                  type="email"
+                <textarea
+                  rows={1}
                   placeholder="company@example.com"
                   autoComplete="email"
-                  className={inputClass("email")}
+                  className={`${inputClass("email")} resize-none`}
                   {...field("email")}
+                />
+              </InputWrapper>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              <InputWrapper label="Password" icon={Lock} error={errors.password}>
+                <textarea
+                  rows={1}
+                  placeholder="Choose a password (min 6 chars)"
+                  autoComplete="new-password"
+                  className={`${inputClass("password")} resize-none`}
+                  style={{ WebkitTextSecurity: "disc" }}
+                  {...field("password")}
+                />
+              </InputWrapper>
+
+              <InputWrapper label="Confirm Password" icon={Lock} error={errors.confirmPassword}>
+                <textarea
+                  rows={1}
+                  placeholder="Re-enter password"
+                  autoComplete="new-password"
+                  className={`${inputClass("confirmPassword")} resize-none`}
+                  style={{ WebkitTextSecurity: "disc" }}
+                  {...field("confirmPassword")}
                 />
               </InputWrapper>
             </div>

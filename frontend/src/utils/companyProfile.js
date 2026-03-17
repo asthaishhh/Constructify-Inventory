@@ -9,6 +9,7 @@ export const defaultCompanyProfile = {
   address: "",
   phone: "",
   email: "",
+  password: "",
 };
 
 export function loadCompanyProfile() {
@@ -33,6 +34,11 @@ export function saveCompanyProfile(profile) {
     ...defaultCompanyProfile,
     ...profile,
   };
+
+  // Do not persist confirmPassword field
+  if (normalized.hasOwnProperty("confirmPassword")) {
+    delete normalized.confirmPassword;
+  }
 
   localStorage.setItem(COMPANY_PROFILE_KEY, JSON.stringify(normalized));
   return normalized;
