@@ -11,9 +11,48 @@ import {
   X,
   Save,
   Lock,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { loadCompanyProfile, saveCompanyProfile } from "../utils/companyProfile";
+
+/* ── Password strength ── */
+function getStrength(pw) {
+  if (!pw) return { score: 0, label: "", color: "" };
+  let score = 0;
+  if (pw.length >= 6) score++;
+  if (pw.length >= 10) score++;
+  if (/[A-Z]/.test(pw)) score++;
+  if (/[0-9]/.test(pw)) score++;
+  if (/[^A-Za-z0-9]/.test(pw)) score++;
+  if (score <= 1) return { score, label: "Weak", color: "bg-red-500" };
+  if (score <= 2) return { score, label: "Fair", color: "bg-orange-400" };
+  if (score <= 3) return { score, label: "Good", color: "bg-yellow-400" };
+  if (score <= 4) return { score, label: "Strong", color: "bg-green-500" };
+  return { score, label: "Very Strong", color: "bg-emerald-500" };
+}
+
+/* ── Defined OUTSIDE the component so React never treats it as a new type on re-render ── */
+const InputWrapper = ({ label, icon: Icon, error, children }) => (
+  <div>
+    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+      {label}
+    </label>
+    <div className="relative">
+      <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
+        <Icon size={17} />
+      </div>
+      {children}
+    </div>
+    {error && <p className="mt-1 text-xs text-red-500">{error}</p>}
+  </div>
+);
+
+const inputClass = (errors, key) =>
+  `w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent
+   bg-white dark:bg-slate-700 text-slate-900 dark:text-white transition-colors
+   ${errors[key] ? "border-red-400 dark:border-red-500" : "border-slate-300 dark:border-slate-600"}`;
 
 const INITIAL_STATE = {
   companyName: "",
@@ -37,6 +76,9 @@ export default function RegisterCompany() {
   const [logoFileName, setLogoFileName] = useState("");
   const [saved, setSaved] = useState(false);
   const [errors, setErrors] = useState({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   /* Load existing profile on mount */
   useEffect(() => {
@@ -121,7 +163,6 @@ export default function RegisterCompany() {
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
       newErrors.email = "Enter a valid email address.";
     }
-    // password validation (min length and match)
     if (!form.password || String(form.password).length < 6) {
       newErrors.password = "Password must be at least 6 characters.";
     }
@@ -138,34 +179,53 @@ export default function RegisterCompany() {
       setErrors(validationErrors);
       return;
     }
-    saveCompanyProfile(form);
-    setSaved(true);
-    const isLoggedIn = !!localStorage.getItem("token");
-    setTimeout(() => {
-      navigate(isLoggedIn ? "/settings" : "/login");
-    }, 1400);
+
+    // Attempt signup on backend to create admin user (password will be hashed server-side)
+    (async () => {
+      setIsSubmitting(true);
+      try {
+        const apiBase = import.meta.env.VITE_API_BASE || "http://localhost:5000";
+        const resp = await fetch(`${apiBase}/api/auth/signup`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: form.ownerName,
+            email: form.email,
+            password: form.password,
+            role: "admin",
+          }),
+        });
+
+        const data = await resp.json();
+        if (!resp.ok) {
+          // server-side validation error
+          const message = data?.message || (data?.errors ? data.errors.join(", ") : "Signup failed");
+          setErrors((prev) => ({ ...prev, form: message }));
+          setIsSubmitting(false);
+          return;
+        }
+
+        // Save token to localStorage so user is logged in
+        if (data.token) {
+          localStorage.setItem("token", data.token);
+        }
+
+        // Save company profile locally (without password)
+        const { password: _p, confirmPassword: _c, ...profileToSave } = form;
+        saveCompanyProfile(profileToSave);
+
+        setSaved(true);
+        setIsSubmitting(false);
+        setTimeout(() => {
+          navigate("/settings");
+        }, 1000);
+      } catch (err) {
+        console.error(err);
+        setErrors((prev) => ({ ...prev, form: "Network or server error during signup" }));
+        setIsSubmitting(false);
+      }
+    })();
   };
-
-  /* ── UI helpers ── */
-  const InputWrapper = ({ label, icon: Icon, error, children }) => (
-    <div>
-      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-        {label}
-      </label>
-      <div className="relative">
-        <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
-          <Icon size={17} />
-        </div>
-        {children}
-      </div>
-      {error && <p className="mt-1 text-xs text-red-500">{error}</p>}
-    </div>
-  );
-
-  const inputClass = (key) =>
-    `w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent
-     bg-white dark:bg-slate-700 text-slate-900 dark:text-white transition-colors
-     ${errors[key] ? "border-red-400 dark:border-red-500" : "border-slate-300 dark:border-slate-600"}`;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-6">
@@ -197,6 +257,11 @@ export default function RegisterCompany() {
           className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl p-8"
         >
           <form onSubmit={handleSubmit} noValidate className="space-y-6">
+            {errors.form && (
+              <div className="p-3 bg-red-50 border border-red-100 text-red-700 rounded-md">
+                {errors.form}
+              </div>
+            )}
             {/* Logo Upload */}
             <div>
               <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
@@ -267,24 +332,25 @@ export default function RegisterCompany() {
               icon={Building2}
               error={errors.companyName}
             >
-              <textarea
-                rows={1}
+              <input
+                type="text"
                 placeholder="e.g. Constructify Pvt. Ltd."
                 autoComplete="organization"
-                className={`${inputClass("companyName")} resize-none`}
+                className={inputClass(errors, "companyName")}
                 {...field("companyName")}
               />
             </InputWrapper>
 
+            {/* Company Tagline */}
             <InputWrapper
               label="Company Tagline"
               icon={Building2}
               error={errors.companyTagline}
             >
-              <textarea
-                rows={1}
-                placeholder="Wholesale and Distibution"
-                className={`${inputClass("companyTagline")} resize-none`}
+              <input
+                type="text"
+                placeholder="Wholesale and Distribution"
+                className={inputClass(errors, "companyTagline")}
                 {...field("companyTagline")}
               />
             </InputWrapper>
@@ -295,24 +361,25 @@ export default function RegisterCompany() {
               icon={User}
               error={errors.ownerName}
             >
-              <textarea
-                rows={1}
+              <input
+                type="text"
                 placeholder="e.g. Rajesh Sharma"
                 autoComplete="name"
-                className={`${inputClass("ownerName")} resize-none`}
+                className={inputClass(errors, "ownerName")}
                 {...field("ownerName")}
               />
             </InputWrapper>
 
+            {/* GST IN */}
             <InputWrapper
               label="GST IN"
               icon={Building2}
               error={errors.gstIn}
             >
-              <textarea
-                rows={1}
+              <input
+                type="text"
                 placeholder="e.g. 22AAAAA0000A1Z5"
-                className={`${inputClass("gstIn")} resize-none`}
+                className={inputClass(errors, "gstIn")}
                 value={form.gstIn}
                 onChange={(e) => {
                   const nextValue = e.target.value.toUpperCase();
@@ -323,7 +390,7 @@ export default function RegisterCompany() {
               />
             </InputWrapper>
 
-            {/* Address */}
+            {/* Address — kept as textarea since it's genuinely multi-line */}
             <div>
               <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
                 Address
@@ -359,11 +426,11 @@ export default function RegisterCompany() {
                 icon={Phone}
                 error={errors.phone}
               >
-                <textarea
-                  rows={1}
+                <input
+                  type="tel"
                   placeholder="+91 9876543210"
                   autoComplete="tel"
-                  className={`${inputClass("phone")} resize-none`}
+                  className={inputClass(errors, "phone")}
                   {...field("phone")}
                 />
               </InputWrapper>
@@ -373,38 +440,121 @@ export default function RegisterCompany() {
                 icon={Mail}
                 error={errors.email}
               >
-                <textarea
-                  rows={1}
+                <input
+                  type="email"
                   placeholder="company@example.com"
                   autoComplete="email"
-                  className={`${inputClass("email")} resize-none`}
+                  className={inputClass(errors, "email")}
                   {...field("email")}
                 />
               </InputWrapper>
             </div>
 
+            {/* Password fields */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-              <InputWrapper label="Password" icon={Lock} error={errors.password}>
-                <textarea
-                  rows={1}
-                  placeholder="Choose a password (min 6 chars)"
-                  autoComplete="new-password"
-                  className={`${inputClass("password")} resize-none`}
-                  style={{ WebkitTextSecurity: "disc" }}
-                  {...field("password")}
-                />
-              </InputWrapper>
+              {/* Password */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                  Password
+                </label>
+                <div className="relative">
+                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
+                    <Lock size={17} />
+                  </div>
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    placeholder="Min 6 characters"
+                    autoComplete="new-password"
+                    className={`${inputClass(errors, "password")} pr-10`}
+                    {...field("password")}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((v) => !v)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                  >
+                    {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
+                  </button>
+                </div>
 
-              <InputWrapper label="Confirm Password" icon={Lock} error={errors.confirmPassword}>
-                <textarea
-                  rows={1}
-                  placeholder="Re-enter password"
-                  autoComplete="new-password"
-                  className={`${inputClass("confirmPassword")} resize-none`}
-                  style={{ WebkitTextSecurity: "disc" }}
-                  {...field("confirmPassword")}
-                />
-              </InputWrapper>
+                {/* Strength meter — only shown when user starts typing */}
+                {form.password && (() => {
+                  const { score, label, color } = getStrength(form.password);
+                  return (
+                    <div className="mt-2 space-y-1">
+                      <div className="flex gap-1">
+                        {[1, 2, 3, 4, 5].map((i) => (
+                          <div
+                            key={i}
+                            className={`h-1 flex-1 rounded-full transition-all duration-300 ${
+                              i <= score ? color : "bg-slate-200 dark:bg-slate-600"
+                            }`}
+                          />
+                        ))}
+                      </div>
+                      <p className={`text-xs font-medium ${
+                        score <= 1 ? "text-red-500"
+                        : score <= 2 ? "text-orange-400"
+                        : score <= 3 ? "text-yellow-500"
+                        : "text-green-500"
+                      }`}>
+                        {label}
+                      </p>
+                    </div>
+                  );
+                })()}
+
+                {errors.password && (
+                  <p className="mt-1 text-xs text-red-500">{errors.password}</p>
+                )}
+              </div>
+
+              {/* Confirm Password */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                  Confirm Password
+                </label>
+                <div className="relative">
+                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
+                    <Lock size={17} />
+                  </div>
+                  <input
+                    type={showConfirm ? "text" : "password"}
+                    placeholder="Re-enter password"
+                    autoComplete="new-password"
+                    className={`${inputClass(errors, "confirmPassword")} pr-10`}
+                    {...field("confirmPassword")}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirm((v) => !v)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+                    aria-label={showConfirm ? "Hide password" : "Show password"}
+                  >
+                    {showConfirm ? <EyeOff size={17} /> : <Eye size={17} />}
+                  </button>
+                </div>
+
+                {/* Match indicator */}
+                {form.confirmPassword && (
+                  <p className={`mt-2 text-xs font-medium flex items-center gap-1 ${
+                    form.password === form.confirmPassword
+                      ? "text-green-500"
+                      : "text-red-500"
+                  }`}>
+                    {form.password === form.confirmPassword ? (
+                      <><CheckCircle size={13} /> Passwords match</>
+                    ) : (
+                      <><X size={13} /> Passwords do not match</>
+                    )}
+                  </p>
+                )}
+
+                {errors.confirmPassword && (
+                  <p className="mt-1 text-xs text-red-500">{errors.confirmPassword}</p>
+                )}
+              </div>
             </div>
 
             {/* Actions */}
