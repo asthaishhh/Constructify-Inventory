@@ -1,473 +1,559 @@
-import React from 'react';
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { getDashboardAnalytics } from "../api/dashboard.api";
-import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, RadialBarChart, RadialBar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Area, AreaChart } from 'recharts';
-import { TrendingUp, TrendingDown, ReceiptIndianRupee, ShoppingCart, Package, AlertTriangle } from 'lucide-react';
+import {
+  AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+} from "recharts";
+import {
+  TrendingUp, TrendingDown, ReceiptIndianRupee,
+  ShoppingCart, Package, AlertTriangle, BarChart2,
+  Calendar, X, ChevronDown,
+} from "lucide-react";
 
+/* ─────────────────────────────────────────────────────────────
+   HELPERS
+───────────────────────────────────────────────────────────── */
+
+const tooltipStyle = {
+  backgroundColor: "#ffffff",
+  border: "1px solid #e5e7eb",
+  borderRadius: "10px",
+  color: "#1f2937",
+  fontSize: 12,
+  boxShadow: "0 4px 16px rgba(0,0,0,0.08)",
+};
+
+/* Convert "Jan 2025" / "Jan" / "2025-01" → Date (first of that month) */
+const parseMonthLabel = (label = "") => {
+  if (!label) return null;
+  // "2025-01" format
+  if (/^\d{4}-\d{2}/.test(label)) return new Date(label + "-01");
+  // "Jan 2025" or "Jan"
+  const parts = label.trim().split(" ");
+  const monthStr = parts[0];
+  const year = parts[1] ? parseInt(parts[1]) : new Date().getFullYear();
+  const d = new Date(`${monthStr} 1, ${year}`);
+  return isNaN(d.getTime()) ? null : d;
+};
+
+/* Quick-preset ranges */
+const PRESETS = [
+  { label: "Last 3 months", months: 3 },
+  { label: "Last 6 months", months: 6 },
+  { label: "Last 12 months", months: 12 },
+];
+
+/* ─────────────────────────────────────────────────────────────
+   SUB-COMPONENTS
+───────────────────────────────────────────────────────────── */
+
+const ChartCard = ({ title, subtitle, children, className = "", badge }) => (
+  <div className={`bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md transition-all duration-200 p-4 sm:p-5 ${className}`}>
+    <div className="flex items-start justify-between gap-2 mb-4">
+      <div>
+        <h3 className="text-sm sm:text-base font-bold text-gray-900 dark:text-white">{title}</h3>
+        {subtitle && <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{subtitle}</p>}
+      </div>
+      {badge}
+    </div>
+    {children}
+  </div>
+);
+
+const LegendRow = ({ items }) => (
+  <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 mt-3">
+    {items.map((item, i) => (
+      <div key={i} className="flex items-center gap-1.5 min-w-0">
+        <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: item.color || item.fill }} />
+        <span className="text-xs text-gray-500 dark:text-gray-400 truncate">{item.name || item.status}</span>
+        <span className="text-xs font-bold text-gray-800 dark:text-white ml-auto">{item.value}%</span>
+      </div>
+    ))}
+  </div>
+);
+
+const Skeleton = () => (
+  <div className="h-7 w-28 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+);
+
+const EmptyChart = ({ height = 200 }) => (
+  <div className="flex flex-col items-center justify-center text-gray-300 dark:text-gray-600 gap-2" style={{ height }}>
+    <BarChart2 className="w-8 h-8" />
+    <span className="text-xs">No data for selected range</span>
+  </div>
+);
+
+/* ─────────────────────────────────────────────────────────────
+   MAIN COMPONENT
+───────────────────────────────────────────────────────────── */
 
 const ConstructifyAnalytics = () => {
-  const [timeFilter, setTimeFilter] = useState('Last 30 days');
-  const [chartType, setChartType] = useState('Revenue');
-  const [darkMode, setDarkMode] = useState(true);
-
+  /* ── raw data from API ── */
+  const [rawRevenue,    setRawRevenue]    = useState([]);
+  const [rawProfit,     setRawProfit]     = useState([]);
+  const [salesCategoryData,  setSalesCategoryData]  = useState([]);
   const [expenseBreakdownData, setExpenseBreakdownData] = useState([]);
-  const [revenueData, setRevenueData] = useState([]);
-  const [salesCategoryData, setSalesCategoryData] = useState([]);
-  const [profitMarginData, setProfitMarginData] = useState([]);
-  const [orderStatusData, setOrderStatusData] = useState([]);
-  const [stockLevelsData, setStockLevelsData] = useState([]);
+  const [orderStatusData,    setOrderStatusData]    = useState([]);
+  const [stockLevelsData,    setStockLevelsData]    = useState([]);
+  const [baseSummary,   setBaseSummary]   = useState({ totalRevenue: 0, totalOrders: 0, lowStockCount: 0 });
+  const [statsLoading,  setStatsLoading]  = useState(true);
 
-  // New states for dynamic stats
-  const [totalRevenue, setTotalRevenue] = useState(0);
-  const [totalOrders, setTotalOrders] = useState(0);
-  const [lowStock, setLowStock] = useState(0);
-  const [statsLoading, setStatsLoading] = useState(true);
+  /* ── filter state ── */
+  const [dateFrom,      setDateFrom]      = useState("");   // "YYYY-MM"
+  const [dateTo,        setDateTo]        = useState("");   // "YYYY-MM"
+  const [showPicker,    setShowPicker]    = useState(false);
+  const [activePreset,  setActivePreset]  = useState(null); // label string | null
 
-  // ✅ Dark mode effect
+  /* ── chart type ── */
+  const [chartType, setChartType] = useState("Revenue");
+
+  /* ── load analytics ── */
   useEffect(() => {
-    if (darkMode) {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
-  }, [darkMode]);
-
-  useEffect(() => {
-    const loadAnalytics = async () => {
+    const load = async () => {
       try {
         setStatsLoading(true);
-        const analytics = await getDashboardAnalytics();
-
-        setRevenueData(Array.isArray(analytics?.revenueTrend) ? analytics.revenueTrend : []);
-        setSalesCategoryData(Array.isArray(analytics?.salesByCategory) ? analytics.salesByCategory : []);
-        setProfitMarginData(Array.isArray(analytics?.profitMarginTrend) ? analytics.profitMarginTrend : []);
-        setOrderStatusData(Array.isArray(analytics?.orderStatus) ? analytics.orderStatus : []);
-        setStockLevelsData(Array.isArray(analytics?.stockLevels) ? analytics.stockLevels : []);
-        setExpenseBreakdownData(Array.isArray(analytics?.expenseBreakdown) ? analytics.expenseBreakdown : []);
-
-        setTotalRevenue(Number(analytics?.summary?.totalRevenue || 0));
-        setTotalOrders(Number(analytics?.summary?.totalOrders || 0));
-        setLowStock(Number(analytics?.summary?.lowStockCount || 0));
+        const a = await getDashboardAnalytics();
+        setRawRevenue(Array.isArray(a?.revenueTrend)       ? a.revenueTrend       : []);
+        setRawProfit(Array.isArray(a?.profitMarginTrend)    ? a.profitMarginTrend  : []);
+        setSalesCategoryData(Array.isArray(a?.salesByCategory)   ? a.salesByCategory   : []);
+        setExpenseBreakdownData(Array.isArray(a?.expenseBreakdown)  ? a.expenseBreakdown  : []);
+        setOrderStatusData(Array.isArray(a?.orderStatus)    ? a.orderStatus    : []);
+        setStockLevelsData(Array.isArray(a?.stockLevels)    ? a.stockLevels    : []);
+        setBaseSummary({
+          totalRevenue:  Number(a?.summary?.totalRevenue  || 0),
+          totalOrders:   Number(a?.summary?.totalOrders   || 0),
+          lowStockCount: Number(a?.summary?.lowStockCount || 0),
+        });
       } catch (err) {
         console.error("Error fetching analytics:", err);
-        setRevenueData([]);
-        setSalesCategoryData([]);
-        setProfitMarginData([]);
-        setOrderStatusData([]);
-        setStockLevelsData([]);
-        setExpenseBreakdownData([]);
-        setTotalRevenue(0);
-        setTotalOrders(0);
-        setLowStock(0);
       } finally {
         setStatsLoading(false);
       }
     };
-
-    loadAnalytics();
+    load();
   }, []);
 
-  const getChartData = () => {
-    switch (chartType) {
-      case 'Revenue':
-        return { dataKey: 'revenue', color: '#00D4AA' };
-      case 'Orders':
-        return { dataKey: 'expenses', color: '#5B8DEE' };
-      case 'Profit':
-        return { dataKey: 'profit', color: '#A29BFE' };
-      default:
-        return { dataKey: 'revenue', color: '#00D4AA' };
-    }
+  /* ── filter helpers ── */
+  const toYM = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+
+  const applyPreset = (months) => {
+    const now   = new Date();
+    const start = new Date(now.getFullYear(), now.getMonth() - (months - 1), 1);
+    setDateFrom(toYM(start));
+    setDateTo(toYM(now));
   };
 
-  const chartConfig = getChartData();
+  const clearDates = () => {
+    setDateFrom("");
+    setDateTo("");
+    setActivePreset(null);
+  };
 
+  const isFiltered = dateFrom || dateTo;
+
+  /* ── filtered time-series data ── */
+  const filterByRange = (arr) => {
+    if (!dateFrom && !dateTo) return arr;
+    return arr.filter((row) => {
+      const d = parseMonthLabel(row.month);
+      if (!d) return true;
+      const ym = toYM(d);
+      if (dateFrom && ym < dateFrom) return false;
+      if (dateTo   && ym > dateTo)   return false;
+      return true;
+    });
+  };
+
+  const revenueData    = useMemo(() => filterByRange(rawRevenue), [rawRevenue, dateFrom, dateTo]);
+  const profitMarginData = useMemo(() => filterByRange(rawProfit),  [rawProfit,  dateFrom, dateTo]);
+
+  /* ── derived stat card values from filtered revenue data ── */
+  const filteredStats = useMemo(() => {
+    if (!isFiltered) return baseSummary;
+    const rev    = revenueData.reduce((s, r) => s + (Number(r.revenue) || 0), 0);
+    const orders = revenueData.reduce((s, r) => s + (Number(r.orders)  || 0), 0);
+    return {
+      totalRevenue:  rev    || baseSummary.totalRevenue,
+      totalOrders:   orders || baseSummary.totalOrders,
+      lowStockCount: baseSummary.lowStockCount,
+    };
+  }, [revenueData, isFiltered, baseSummary]);
+
+  /* ── chart config ── */
+  const chartConfig = {
+    Revenue: { dataKey: "revenue",  color: "#2563eb" },
+    Orders:  { dataKey: "expenses", color: "#6366f1" },
+    Profit:  { dataKey: "profit",   color: "#10b981" },
+  }[chartType];
+
+  /* ── formatting ── */
+  const formatINR = (v) =>
+    new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", minimumFractionDigits: 0 }).format(v);
+
+  /* ── filter label for display ── */
+  const filterLabel = useMemo(() => {
+    if (!isFiltered) return "All time";
+    const fmt = (ym) => {
+      if (!ym) return "";
+      const [y, m] = ym.split("-");
+      return new Date(+y, +m - 1, 1).toLocaleString("en-IN", { month: "short", year: "numeric" });
+    };
+    if (dateFrom && dateTo) return `${fmt(dateFrom)} – ${fmt(dateTo)}`;
+    if (dateFrom)           return `From ${fmt(dateFrom)}`;
+    return `Up to ${fmt(dateTo)}`;
+  }, [dateFrom, dateTo, isFiltered]);
+
+  /* ────────────────────────────────────────────────────────────
+     RENDER
+  ──────────────────────────────────────────────────────────── */
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 transition-colors duration-300">
-      {/* Header */}
-      <div className="mb-6 px-4 sm:px-6 lg:px-8">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-1">Analytics</h1>
-            <p className="text-sm sm:text-base text-gray-600 dark:text-slate-400">Comprehensive insights into your inventory performance</p>
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
+
+      {/* Top accent bar */}
+      <div className="h-1 w-full bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500" />
+
+      <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+
+        {/* ── Header ── */}
+        <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 sm:mb-8">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-blue-600 rounded-xl shadow-lg shadow-blue-200 dark:shadow-blue-900/40 flex-shrink-0">
+              <BarChart2 className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+            </div>
+            <div>
+              <h1 className="text-xl sm:text-3xl font-bold text-gray-900 dark:text-white tracking-tight">
+                Analytics
+              </h1>
+              <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 hidden sm:block">
+                Comprehensive insights into your inventory performance
+              </p>
+            </div>
           </div>
-          <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-            {/* <select
-              value={timeFilter}
-              onChange={(e) => setTimeFilter(e.target.value)}
-              className="bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-3 sm:px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700 focus:outline-none focus:border-blue-600 text-sm"
+
+          {/* ── Date filter pill ── */}
+          <div className="relative">
+            <button
+              onClick={() => setShowPicker((p) => !p)}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 text-sm font-semibold transition-all shadow-sm
+                ${isFiltered
+                  ? "bg-blue-600 text-white border-blue-600 shadow-blue-200 dark:shadow-blue-900/40"
+                  : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:border-blue-400"
+                }`}
             >
-              <option>Last 7 days</option>
-              <option>Last 30 days</option>
-              <option>Last 90 days</option>
-              <option>Last year</option>
-            </select> */}
-            {/* <button className="px-3 sm:px-4 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded-lg border border-gray-300 dark:border-slate-600/50 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all text-sm">
-              Filter
-            </button> */}
-            {/* <button className="flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white px-4 sm:px-5 py-2 sm:py-3 rounded-xl shadow-md hover:shadow-lg transition-all font-medium text-sm">
-              <span>↓</span> <span className="hidden sm:inline">Export</span>
-            </button> */}
-          </div>
-        </div>
-      </div>
+              <Calendar className="w-4 h-4 flex-shrink-0" />
+              <span className="max-w-[180px] truncate">{filterLabel}</span>
+              {isFiltered
+                ? <X className="w-3.5 h-3.5 ml-1 flex-shrink-0" onClick={(e) => { e.stopPropagation(); clearDates(); }} />
+                : <ChevronDown className={`w-3.5 h-3.5 ml-1 flex-shrink-0 transition-transform ${showPicker ? "rotate-180" : ""}`} />
+              }
+            </button>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6 px-4 sm:px-6 lg:px-8">
-        {/* Total Revenue */}
-        <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-          <div className="flex items-start justify-between mb-3">
-            <div>
-              <p className="text-gray-600 dark:text-slate-400 text-xs sm:text-sm mb-1">Total Revenue</p>
-              <h3 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">
-                {statsLoading ? "..." : `₹${totalRevenue.toLocaleString('en-IN')}`}
-              </h3>
-            </div>
-            <div className="w-10 h-10 bg-emerald-600/20 rounded-lg flex items-center justify-center">
-              <ReceiptIndianRupee className="w-5 h-5 text-emerald-500" />
-            </div>
-          </div>
-          <div className="flex items-center gap-1 text-emerald-500 text-xs sm:text-sm">
-            <TrendingUp className="w-4 h-4" />
-            <span>+12.5%</span>
-          </div>
-        </div>
-
-        {/* Total Orders */}
-        <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-          <div className="flex items-start justify-between mb-3">
-            <div>
-              <p className="text-gray-600 dark:text-slate-400 text-xs sm:text-sm mb-1">Customer Orders</p>
-              <h3 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">
-                {statsLoading ? "..." : totalOrders.toLocaleString('en-IN')}
-              </h3>
-            </div>
-            <div className="w-10 h-10 bg-blue-600/20 rounded-lg flex items-center justify-center">
-              <ShoppingCart className="w-5 h-5 text-blue-500" />
-            </div>
-          </div>
-          <div className="flex items-center gap-1 text-emerald-500 text-xs sm:text-sm">
-            <TrendingUp className="w-4 h-4" />
-            <span>+8.2%</span>
-          </div>
-        </div>
-
-        {/* Low Stock Alert */}
-        <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-          <div className="flex items-start justify-between mb-3">
-            <div>
-              <p className="text-gray-600 dark:text-slate-400 text-xs sm:text-sm mb-1">Low Stock</p>
-              <h3 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">
-                {statsLoading ? "..." : lowStock}
-              </h3>
-            </div>
-            <div className="w-10 h-10 bg-orange-600/20 rounded-lg flex items-center justify-center">
-              <AlertTriangle className="w-5 h-5 text-orange-500" />
-            </div>
-          </div>
-          <div className="flex items-center gap-1 text-orange-500 text-xs sm:text-sm">
-            <TrendingUp className="w-4 h-4" />
-            <span>+3.1%</span>
-          </div>
-        </div>
-
-        {/* Stock Turnover */}
-        <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-          <div className="flex items-start justify-between mb-3">
-            <div>
-              <p className="text-gray-600 dark:text-slate-400 text-xs sm:text-sm mb-1">Stock Turnover</p>
-              <h3 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">4.2x</h3>
-            </div>
-            <div className="w-10 h-10 bg-purple-600/20 rounded-lg flex items-center justify-center">
-              <Package className="w-5 h-5 text-purple-500" />
-            </div>
-          </div>
-          <div className="flex items-center gap-1 text-red-500 text-xs sm:text-sm">
-            <TrendingDown className="w-4 h-4" />
-            <span>-2.3%</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Charts Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 mb-6 px-4 sm:px-6 lg:px-8">
-
-        {/* Revenue & Orders Trend - Full Width */}
-        <div className="bg-white dark:bg-gray-800 backdrop-blur-sm rounded-xl p-4 sm:p-6 border border-gray-200 dark:border-slate-700/40 lg:col-span-3">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
-            <div>
-              <h3 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white mb-1">Revenue & Orders Trend</h3>
-            </div>
-            <div className="flex gap-2 w-full sm:w-auto">
-              <button
-                onClick={() => setChartType('Revenue')}
-                className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all ${chartType === 'Revenue'
-                  ? 'bg-emerald-600 text-white'
-                  : 'bg-gray-200 dark:bg-[#1a1f37] text-gray-700 dark:text-slate-300 hover:bg-gray-300 dark:hover:bg-[#2a3150]'
-                  }`}
-              >
-                Revenue
-              </button>
-              <button
-                onClick={() => setChartType('Orders')}
-                className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all ${chartType === 'Orders'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-200 dark:bg-[#1a1f37] text-gray-700 dark:text-slate-300 hover:bg-gray-300 dark:hover:bg-[#2a3150]'
-                  }`}
-              >
-                Orders
-              </button>
-              <button
-                onClick={() => setChartType('Profit')}
-                className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all ${chartType === 'Profit'
-                  ? 'bg-purple-600 text-white'
-                  : 'bg-gray-200 dark:bg-[#1a1f37] text-gray-700 dark:text-slate-300 hover:bg-gray-300 dark:hover:bg-[#2a3150]'
-                  }`}
-              >
-                Profit
-              </button>
-            </div>
-          </div>
-          <ResponsiveContainer width="100%" height={300}>
-            <AreaChart data={revenueData}>
-              <defs>
-                <linearGradient id="colorGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor={chartConfig.color} stopOpacity={0.3} />
-                  <stop offset="95%" stopColor={chartConfig.color} stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke={darkMode ? "#2d3550" : "#e5e7eb"} />
-              <XAxis dataKey="month" stroke={darkMode ? "#8892b0" : "#6b7280"} />
-              <YAxis stroke={darkMode ? "#8892b0" : "#6b7280"} />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: darkMode ? '#232842' : '#ffffff',
-                  border: `1px solid ${darkMode ? '#3d4463' : '#e5e7eb'}`,
-                  borderRadius: '8px',
-                  color: darkMode ? '#fff' : '#1f2937'
-                }}
-              />
-              <Area
-                type="monotone"
-                dataKey={chartConfig.dataKey}
-                stroke={chartConfig.color}
-                strokeWidth={2}
-                fill="url(#colorGradient)"
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* Sales by Product Category */}
-        <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-          <div className="mb-4">
-            <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-1">Sales by Category</h3>
-            <p className="text-xs text-gray-600 dark:text-slate-400">Product distribution breakdown</p>
-          </div>
-          <ResponsiveContainer width="100%" height={220}>
-            <PieChart>
-              <Pie
-                data={salesCategoryData}
-                cx="50%"
-                cy="50%"
-                innerRadius={50}
-                outerRadius={80}
-                paddingAngle={3}
-                dataKey="value"
-              >
-                {salesCategoryData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.color} />
-                ))}
-              </Pie>
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: darkMode ? '#232842' : '#ffffff',
-                  border: `1px solid ${darkMode ? '#3d4463' : '#e5e7eb'}`,
-                  borderRadius: '8px',
-                  color: darkMode ? '#fff' : '#1f2937'
-                }}
-                itemStyle={{
-                  color: darkMode ? '#ffffff' : '#1f2937',
-                }}
-              />
-            </PieChart>
-          </ResponsiveContainer>
-          <div className="grid grid-cols-2 gap-2 mt-4">
-            {salesCategoryData.map((item, idx) => (
-              <div key={idx} className="flex items-center gap-2">
-                <div
-                  className="w-2.5 h-2.5 rounded-full"
-                  style={{ backgroundColor: item.color }}
-                />
-                <span className="text-xs text-gray-600 dark:text-slate-300">{item.name}</span>
-                <span className="text-xs font-semibold text-gray-900 dark:text-white ml-auto">{item.value}%</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Expense Breakdown */}
-        <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-          <div className="mb-4">
-            <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-1">Expense Breakdown</h3>
-            <p className="text-xs text-gray-600 dark:text-slate-400">Cost distribution analysis</p>
-          </div>
-          <ResponsiveContainer width="100%" height={280}>
-            <BarChart data={expenseBreakdownData} layout="vertical">
-              <CartesianGrid strokeDasharray="3 3" stroke={darkMode ? "#2d3550" : "#e5e7eb"} horizontal={false} />
-              <XAxis type="number" stroke={darkMode ? "#8892b0" : "#6b7280"} />
-              <YAxis type="category" dataKey="category" stroke={darkMode ? "#8892b0" : "#6b7280"} width={100} />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: darkMode ? '#232842' : '#ffffff',
-                  border: `1px solid ${darkMode ? '#3d4463' : '#e5e7eb'}`,
-                  borderRadius: '8px',
-                  color: darkMode ? '#fff' : '#1f2937'
-                }}
-                itemStyle={{
-                  color: darkMode ? '#ffffff' : '#1f2937',
-                }}
-              />
-              <Bar dataKey="value" radius={[0, 6, 6, 0]}>
-                {expenseBreakdownData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.fill} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* Order Status Distribution */}
-        <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-          <div className="mb-4">
-            <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-1">Order Status</h3>
-            <p className="text-xs text-gray-600 dark:text-slate-400">Current order pipeline status</p>
-          </div>
-          <ResponsiveContainer width="100%" height={200}>
-            <PieChart>
-              <Pie
-                data={orderStatusData}
-                cx="50%"
-                cy="70%"
-                startAngle={180}
-                endAngle={0}
-                innerRadius={60}
-                outerRadius={90}
-                paddingAngle={2}
-                dataKey="value"
-              >
-                {orderStatusData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.fill} />
-                ))}
-              </Pie>
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: darkMode ? '#252d47' : '#ffffff',
-                  border: `1px solid ${darkMode ? '#475569' : '#e5e7eb'}`,
-                  borderRadius: '8px',
-                  color: darkMode ? '#fff' : '#1f2937'
-                }}
-                itemStyle={{
-                  color: darkMode ? '#ffffff' : '#1f2937',
-                }}
-              />
-            </PieChart>
-          </ResponsiveContainer>
-          <div className="grid grid-cols-2 gap-2 mt-2">
-            {orderStatusData.map((item, idx) => (
-              <div key={idx} className="flex items-center gap-2">
-                <div
-                  className="w-2.5 h-2.5 rounded-full"
-                  style={{ backgroundColor: item.fill }}
-                />
-                <span className="text-xs text-gray-600 dark:text-slate-300">{item.status}</span>
-                <span className="text-xs font-semibold text-gray-900 dark:text-white ml-auto">{item.value}%</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Profit Margin & Stock Levels */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 px-4 sm:px-6 lg:px-8">
-
-        {/* Profit Margin Trends */}
-        <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-          <div className="mb-4">
-            <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-1">Profit Margin Trends</h3>
-            <p className="text-xs text-gray-600 dark:text-slate-400">Monthly profitability tracking</p>
-          </div>
-          <ResponsiveContainer width="100%" height={280}>
-            <BarChart data={profitMarginData}>
-              <defs>
-                <linearGradient id="blueGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#fde68a" stopOpacity={0.9} />
-                  <stop offset="50%" stopColor="#f9a8d4" stopOpacity={0.7} />
-                  <stop offset="95%" stopColor="#d8b4fe" stopOpacity={0.5} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke={darkMode ? "#2a3150" : "#e5e7eb"} vertical={false} />
-              <XAxis dataKey="month" stroke={darkMode ? "#A5B4FC" : "#6b7280"} />
-              <YAxis stroke={darkMode ? "#A5B4FC" : "#6b7280"} />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: darkMode ? '#232842' : '#ffffff',
-                  border: `1px solid ${darkMode ? '#3d4463' : '#e5e7eb'}`,
-                  borderRadius: '8px',
-                  color: darkMode ? '#fff' : '#1f2937'
-                }}
-              />
-              <Bar dataKey="margin" fill="url(#blueGradient)" radius={[0, 6, 6, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* Stock Levels */}
-        <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-          <div className="mb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
-            <div>
-              <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-1">Inventory Stock Levels</h3>
-              <p className="text-xs text-gray-600 dark:text-slate-400">Current vs minimum required stock</p>
-            </div>
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-500/10 rounded-lg border border-amber-500/20">
-              <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
-              <span className="text-xs text-amber-400 font-medium">{statsLoading ? "..." : `${lowStock} low`}</span>
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            {stockLevelsData.map((item, idx) => {
-              const percentage = (item.current / item.max) * 100;
-              const isLow = item.current <= item.minimum;
-
-              return (
-                <div key={idx} className="space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-medium text-gray-700 dark:text-slate-300">{item.material}</span>
-                    <span className={`text-xs font-bold ${isLow ? 'text-amber-400' : 'text-gray-900 dark:text-white'}`}>
-                      {item.current} / {item.max}
-                    </span>
-                  </div>
-                  <div className="relative h-2 bg-gray-200 dark:bg-[#1a1f37] rounded-full overflow-hidden">
-                    <div
-                      className={`absolute top-0 left-0 h-full rounded-full transition-all duration-500 ${isLow
-                        ? 'bg-gradient-to-r from-amber-500 to-orange-500'
-                        : 'bg-gradient-to-r from-indigo-500 to-cyan-300'
+            {/* Dropdown picker */}
+            {showPicker && (
+              <div className="absolute right-0 top-full mt-2 z-50 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-xl p-4 w-[300px] sm:w-[340px]">
+                {/* Quick presets */}
+                <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2">Quick Select</p>
+                <div className="flex flex-wrap gap-2 mb-4">
+                  {PRESETS.map(({ label, months }) => (
+                    <button
+                      key={label}
+                      onClick={() => { applyPreset(months); setActivePreset(label); setShowPicker(false); }}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border
+                        ${activePreset === label
+                          ? "bg-blue-600 text-white border-blue-600"
+                          : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 border-transparent hover:border-blue-300"
                         }`}
-                      style={{ width: `${percentage}%` }}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+
+                <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2">Custom Range</p>
+                <div className="grid grid-cols-2 gap-3 mb-4">
+                  <div>
+                    <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1 block">From</label>
+                    <input
+                      type="month"
+                      value={dateFrom}
+                      max={dateTo || undefined}
+                      onChange={(e) => { setDateFrom(e.target.value); setActivePreset(null); }}
+                      className="w-full border-2 border-gray-200 dark:border-gray-600 rounded-xl px-3 py-2 text-xs bg-gray-50 dark:bg-gray-700/60 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1 block">To</label>
+                    <input
+                      type="month"
+                      value={dateTo}
+                      min={dateFrom || undefined}
+                      onChange={(e) => { setDateTo(e.target.value); setActivePreset(null); }}
+                      className="w-full border-2 border-gray-200 dark:border-gray-600 rounded-xl px-3 py-2 text-xs bg-gray-50 dark:bg-gray-700/60 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
                     />
                   </div>
                 </div>
-              );
-            })}
+
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => { clearDates(); setShowPicker(false); }}
+                    className="flex-1 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300 rounded-xl text-xs font-semibold transition-all"
+                  >
+                    Clear
+                  </button>
+                  <button
+                    onClick={() => setShowPicker(false)}
+                    className="flex-1 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold transition-all"
+                  >
+                    Apply
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
+        </header>
+
+        {/* Active filter badge */}
+        {isFiltered && (
+          <div className="flex items-center gap-2 mb-5 px-4 py-2.5 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl w-fit">
+            <Calendar className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 flex-shrink-0" />
+            <span className="text-xs font-semibold text-blue-700 dark:text-blue-400">
+              Showing data for: {filterLabel}
+            </span>
+            <button onClick={clearDates} className="ml-1 text-blue-500 hover:text-blue-700 dark:hover:text-blue-300">
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
+
+        {/* ── Stats Cards ── */}
+        <section className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
+          {[
+            {
+              label: "Total Revenue", value: statsLoading ? null : formatINR(filteredStats.totalRevenue),
+              icon: <ReceiptIndianRupee className="w-5 h-5 text-green-600 dark:text-green-400" />,
+              bg: "bg-green-50 dark:bg-green-900/20",
+              trend: <span className="flex items-center gap-1 text-green-600 dark:text-green-400 text-xs font-semibold"><TrendingUp className="w-3.5 h-3.5" />+12.5%</span>,
+            },
+            {
+              label: "Customer Orders", value: statsLoading ? null : filteredStats.totalOrders.toLocaleString("en-IN"),
+              icon: <ShoppingCart className="w-5 h-5 text-blue-600 dark:text-blue-400" />,
+              bg: "bg-blue-50 dark:bg-blue-900/20",
+              trend: <span className="flex items-center gap-1 text-green-600 dark:text-green-400 text-xs font-semibold"><TrendingUp className="w-3.5 h-3.5" />+8.2%</span>,
+            },
+            {
+              label: "Low Stock Items", value: statsLoading ? null : String(filteredStats.lowStockCount),
+              icon: <AlertTriangle className="w-5 h-5 text-amber-500" />,
+              bg: "bg-amber-50 dark:bg-amber-900/20",
+              trend: <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400 text-xs font-semibold"><TrendingUp className="w-3.5 h-3.5" />+3.1%</span>,
+            },
+            {
+              label: "Stock Turnover", value: "4.2×",
+              icon: <Package className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />,
+              bg: "bg-indigo-50 dark:bg-indigo-900/20",
+              trend: <span className="flex items-center gap-1 text-red-500 dark:text-red-400 text-xs font-semibold"><TrendingDown className="w-3.5 h-3.5" />-2.3%</span>,
+            },
+          ].map(({ label, value, icon, bg, trend }) => (
+            <div key={label} className="bg-white dark:bg-gray-800 rounded-2xl p-4 sm:p-5 border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md transition-all duration-200 hover:-translate-y-0.5">
+              <div className="flex items-start justify-between gap-2 mb-3">
+                <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider leading-tight">{label}</p>
+                <div className={`p-2 rounded-lg ${bg} flex-shrink-0`}>{icon}</div>
+              </div>
+              <div className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-1">
+                {value === null ? <Skeleton /> : value}
+              </div>
+              {trend}
+            </div>
+          ))}
+        </section>
+
+        {/* ── Revenue / Orders / Profit Trend (full width) ── */}
+        <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm p-4 sm:p-5 mb-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
+            <div>
+              <h3 className="text-sm sm:text-base font-bold text-gray-900 dark:text-white">Revenue & Orders Trend</h3>
+              <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
+                {isFiltered ? `Filtered: ${filterLabel}` : "All-time monthly performance"}
+              </p>
+            </div>
+            <div className="flex bg-gray-100 dark:bg-gray-700/60 rounded-xl p-1 gap-1 w-full sm:w-auto">
+              {["Revenue", "Orders", "Profit"].map((t) => (
+                <button
+                  key={t}
+                  onClick={() => setChartType(t)}
+                  className={`flex-1 sm:flex-none px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
+                    chartType === t
+                      ? "bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 shadow-sm"
+                      : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
+                  }`}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {revenueData.length === 0 ? <EmptyChart height={280} /> : (
+            <ResponsiveContainer width="100%" height={280}>
+              <AreaChart data={revenueData} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%"  stopColor={chartConfig.color} stopOpacity={0.25} />
+                    <stop offset="95%" stopColor={chartConfig.color} stopOpacity={0}    />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" strokeOpacity={0.6} />
+                <XAxis dataKey="month" tick={{ fontSize: 11, fill: "#9ca3af" }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 11, fill: "#9ca3af" }} axisLine={false} tickLine={false} width={45} />
+                <Tooltip contentStyle={tooltipStyle} />
+                <Area
+                  type="monotone"
+                  dataKey={chartConfig.dataKey}
+                  stroke={chartConfig.color}
+                  strokeWidth={2.5}
+                  fill="url(#areaGrad)"
+                  dot={false}
+                  activeDot={{ r: 5, fill: chartConfig.color, strokeWidth: 0 }}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          )}
         </div>
+
+        {/* ── Middle row: Sales Pie + Expenses + Order Status ── */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 mb-6">
+
+          <ChartCard title="Sales by Category" subtitle="Product distribution breakdown">
+            {salesCategoryData.length === 0 ? <EmptyChart /> : (
+              <>
+                <ResponsiveContainer width="100%" height={200}>
+                  <PieChart>
+                    <Pie data={salesCategoryData} cx="50%" cy="50%"
+                      innerRadius={55} outerRadius={80} paddingAngle={3} dataKey="value">
+                      {salesCategoryData.map((e, i) => <Cell key={i} fill={e.color} />)}
+                    </Pie>
+                    <Tooltip contentStyle={tooltipStyle} />
+                  </PieChart>
+                </ResponsiveContainer>
+                <LegendRow items={salesCategoryData} />
+              </>
+            )}
+          </ChartCard>
+
+          <ChartCard title="Expense Breakdown" subtitle="Cost distribution analysis">
+            {expenseBreakdownData.length === 0 ? <EmptyChart height={240} /> : (
+              <ResponsiveContainer width="100%" height={240}>
+                <BarChart data={expenseBreakdownData} layout="vertical" margin={{ left: 0, right: 10 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" strokeOpacity={0.6} horizontal={false} />
+                  <XAxis type="number" tick={{ fontSize: 10, fill: "#9ca3af" }} axisLine={false} tickLine={false} />
+                  <YAxis type="category" dataKey="category" tick={{ fontSize: 10, fill: "#9ca3af" }} axisLine={false} tickLine={false} width={85} />
+                  <Tooltip contentStyle={tooltipStyle} />
+                  <Bar dataKey="value" radius={[0, 6, 6, 0]}>
+                    {expenseBreakdownData.map((e, i) => <Cell key={i} fill={e.fill} />)}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </ChartCard>
+
+          <ChartCard title="Order Status" subtitle="Current order pipeline">
+            {orderStatusData.length === 0 ? <EmptyChart height={180} /> : (
+              <>
+                <ResponsiveContainer width="100%" height={180}>
+                  <PieChart>
+                    <Pie data={orderStatusData} cx="50%" cy="80%"
+                      startAngle={180} endAngle={0}
+                      innerRadius={55} outerRadius={85} paddingAngle={2} dataKey="value">
+                      {orderStatusData.map((e, i) => <Cell key={i} fill={e.fill} />)}
+                    </Pie>
+                    <Tooltip contentStyle={tooltipStyle} />
+                  </PieChart>
+                </ResponsiveContainer>
+                <LegendRow items={orderStatusData} />
+              </>
+            )}
+          </ChartCard>
+        </div>
+
+        {/* ── Bottom row: Profit Margin + Stock Levels ── */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5 pb-8">
+
+          {/* Profit Margin — responds to date filter */}
+          <ChartCard
+            title="Profit Margin Trends"
+            subtitle={isFiltered ? `Filtered: ${filterLabel}` : "Monthly profitability tracking"}
+          >
+            {profitMarginData.length === 0 ? <EmptyChart height={260} /> : (
+              <ResponsiveContainer width="100%" height={260}>
+                <BarChart data={profitMarginData} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="marginGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%"  stopColor="#6366f1" stopOpacity={0.9} />
+                      <stop offset="95%" stopColor="#a78bfa" stopOpacity={0.5} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" strokeOpacity={0.6} vertical={false} />
+                  <XAxis dataKey="month" tick={{ fontSize: 11, fill: "#9ca3af" }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 11, fill: "#9ca3af" }} axisLine={false} tickLine={false} width={35} />
+                  <Tooltip contentStyle={tooltipStyle} />
+                  <Bar dataKey="margin" fill="url(#marginGrad)" radius={[6, 6, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </ChartCard>
+
+          {/* Stock Levels */}
+          <ChartCard
+            title="Inventory Stock Levels"
+            subtitle="Current vs minimum required"
+            badge={
+              filteredStats.lowStockCount > 0 && (
+                <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg flex-shrink-0">
+                  <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
+                  <span className="text-xs font-semibold text-amber-600 dark:text-amber-400 whitespace-nowrap">
+                    {statsLoading ? "…" : `${filteredStats.lowStockCount} low`}
+                  </span>
+                </div>
+              )
+            }
+          >
+            <div className="space-y-4">
+              {stockLevelsData.length === 0 && (
+                <p className="text-xs text-gray-400 dark:text-gray-500 text-center py-8">No stock data available</p>
+              )}
+              {stockLevelsData.map((item, i) => {
+                const pct    = Math.min(100, Math.round((item.current / item.max) * 100));
+                const isLow  = item.current <= item.minimum;
+                return (
+                  <div key={i}>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-xs font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-1.5">
+                        {isLow && <AlertTriangle className="w-3 h-3 text-amber-500 flex-shrink-0" />}
+                        {item.material}
+                      </span>
+                      <span className={`text-xs font-bold ${isLow ? "text-amber-500" : "text-gray-700 dark:text-gray-300"}`}>
+                        {item.current} <span className="font-normal text-gray-400">/ {item.max}</span>
+                      </span>
+                    </div>
+                    <div className="h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full bg-gradient-to-r transition-all duration-500 ${isLow ? "from-amber-400 to-orange-500" : "from-blue-500 to-indigo-500"}`}
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                    <div className="flex justify-between mt-0.5">
+                      <span className="text-[10px] text-gray-400">Min: {item.minimum}</span>
+                      <span className="text-[10px] text-gray-400">{pct}%</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </ChartCard>
+        </div>
+
       </div>
     </div>
   );
 };
 
 export default ConstructifyAnalytics;
-
-
-

@@ -1,114 +1,103 @@
 import React, { useState, useEffect } from "react";
 import axios from "../utils/axiosConfig";
-import { Plus, Edit, Trash2, PackageSearch, Sun, Moon, Download, AlertTriangle, TrendingUp, Package } from "lucide-react";
+import {
+  Plus, Edit, Trash2, PackageSearch, Download,
+  AlertTriangle, TrendingUp, Package, X, Search,
+  Calendar, Tag, Layers,
+} from "lucide-react";
 
 export default function Inventory() {
-  // const [materials, setMaterials] = useState([
-  //   { id: 1, name: "Cement", quantity: 120, unit: "bags", category: "Building Materials", minStock: 50, lastUpdated: "2025-10-15" },
-  //   { id: 2, name: "Sand", quantity: 80, unit: "tons", category: "Aggregates", minStock: 100, lastUpdated: "2025-10-18" },
-  //   { id: 3, name: "Iron Rods", quantity: 45, unit: "bundles", category: "Steel", minStock: 60, lastUpdated: "2025-10-10" },
-  //   { id: 4, name: "Bricks", quantity: 5000, unit: "pieces", category: "Building Materials", minStock: 3000, lastUpdated: "2025-10-19" },
-  //   // { id: 5, name: "Paint", quantity: 30, unit: "gallons", category: "Finishing", minStock: 20, lastUpdated: "2025-10-20" },
-  // ]);
   const [materials, setMaterials] = useState([]);
   const [search, setSearch] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [editItem, setEditItem] = useState(null);
   const [form, setForm] = useState({ name: "", quantity: "", unit: "", category: "", minStock: "" });
-  const [darkMode, setDarkMode] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [loading, setLoading] = useState(true);
 
-  // const API_URL = "/api/materials";
-  const API_URL = import.meta.env.VITE_API_URL || '';
-  // Fetch materials from backend
+  const API_URL = import.meta.env.VITE_API_URL || "";
+
   const fetchMaterials = async () => {
+    setLoading(true);
     try {
       const res = await axios.get(`${API_URL}/api/materials`);
       setMaterials(res.data);
     } catch (err) {
       console.error("Error fetching materials:", err);
+    } finally {
+      setLoading(false);
     }
   };
-  useEffect(() => {
-    fetchMaterials();
-  }, []);
-console.log(fetchMaterials);
 
-  useEffect(() => {
-    if (darkMode) {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
-  }, [darkMode]);
+  useEffect(() => { fetchMaterials(); }, []);
 
+  /* ── Stock status helper ── */
+  const getStockStatus = (m) => {
+    if (m.quantity < m.minStock * 0.5)
+      return { status: "Critical",  dot: "bg-red-500",    badge: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400" };
+    if (m.quantity < m.minStock)
+      return { status: "Low Stock", dot: "bg-amber-400",  badge: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400" };
+    return   { status: "In Stock",  dot: "bg-green-500",  badge: "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400" };
+  };
+
+  /* ── Stock bar width ── */
+  const getBarWidth = (m) => {
+    if (!m.minStock) return 100;
+    return Math.min(100, Math.round((m.quantity / m.minStock) * 100));
+  };
+  const getBarColor = (m) => {
+    const pct = getBarWidth(m);
+    if (pct < 50)  return "bg-red-500";
+    if (pct < 100) return "bg-amber-400";
+    return "bg-green-500";
+  };
+
+  /* ── Save (add / edit) ── */
   const handleSave = async () => {
-  if (!form.name || !form.quantity || !form.unit || !form.category) {
-    alert("Please fill all required fields!");
-    return;
-  }
-
-  const currentDate = new Date().toISOString().split('T')[0];
-
-  try {
-    if (editItem) {
-      // Editing existing item
-      const payload = {
-        name: form.name,
-        quantity: Number(form.quantity),
-        unit: form.unit,
-        category: form.category,
-        minStock: Number(form.minStock) || 0,
-        lastUpdated: currentDate,
-      };
-      const res = await axios.put(`${API_URL}/api/materials/${editItem._id}`, payload);
-      setMaterials((prev) =>
-        prev.map((m) => (m._id === editItem._id ? res.data : m))
-      );
-    } else {
-      // Adding new or updating existing
-      const existingMaterial = materials.find(m => m.name.toLowerCase() === form.name.toLowerCase());
-      if (existingMaterial) {
-        // Update existing material by adding quantity
-        const updatedQuantity = existingMaterial.quantity + Number(form.quantity);
-        const payload = {
-          name: existingMaterial.name,
-          quantity: updatedQuantity,
-          unit: existingMaterial.unit, // Keep existing unit
-          category: existingMaterial.category, // Keep existing category
-          minStock: existingMaterial.minStock, // Keep existing minStock
-          lastUpdated: currentDate,
-        };
-        const res = await axios.put(`${API_URL}/api/materials/${existingMaterial._id}`, payload);
-        setMaterials((prev) =>
-          prev.map((m) => (m._id === existingMaterial._id ? res.data : m))
-        );
-      } else {
-        // Create new material
-        const payload = {
+    if (!form.name || !form.quantity || !form.unit || !form.category) {
+      alert("Please fill all required fields!");
+      return;
+    }
+    const currentDate = new Date().toISOString().split("T")[0];
+    try {
+      if (editItem) {
+        const res = await axios.put(`${API_URL}/api/materials/${editItem._id}`, {
           name: form.name,
           quantity: Number(form.quantity),
           unit: form.unit,
           category: form.category,
           minStock: Number(form.minStock) || 0,
           lastUpdated: currentDate,
-        };
-        const res = await axios.post(`${API_URL}/api/materials`, payload);
-        setMaterials((prev) => [...prev, res.data]);
+        });
+        setMaterials((prev) => prev.map((m) => (m._id === editItem._id ? res.data : m)));
+      } else {
+        const existing = materials.find((m) => m.name.toLowerCase() === form.name.toLowerCase());
+        if (existing) {
+          const res = await axios.put(`${API_URL}/api/materials/${existing._id}`, {
+            ...existing,
+            quantity: existing.quantity + Number(form.quantity),
+            lastUpdated: currentDate,
+          });
+          setMaterials((prev) => prev.map((m) => (m._id === existing._id ? res.data : m)));
+        } else {
+          const res = await axios.post(`${API_URL}/api/materials`, {
+            name: form.name,
+            quantity: Number(form.quantity),
+            unit: form.unit,
+            category: form.category,
+            minStock: Number(form.minStock) || 0,
+            lastUpdated: currentDate,
+          });
+          setMaterials((prev) => [...prev, res.data]);
+        }
       }
+    } catch (err) {
+      console.error("Error saving material:", err.response?.data || err.message);
     }
-  } catch (err) {
-    console.error("Error saving material:", err.response?.data || err.message);
-  }
+    closeModal();
+  };
 
-  setForm({ name: "", quantity: "", unit: "", category: "", minStock: "" });
-  setEditItem(null);
-  setShowModal(false);
-};
-
-
-  // Delete material
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure you want to delete this material?")) return;
     try {
@@ -119,292 +108,353 @@ console.log(fetchMaterials);
     }
   };
 
+  const openAddModal = () => {
+    setEditItem(null);
+    setForm({ name: "", quantity: "", unit: "", category: "", minStock: "" });
+    setShowModal(true);
+  };
+
+  const openEditModal = (m) => {
+    setEditItem(m);
+    setForm({
+      name: m.name,
+      quantity: String(m.quantity),
+      unit: m.unit,
+      category: m.category,
+      minStock: String(m.minStock),
+    });
+    setShowModal(true);
+  };
+
+  const closeModal = () => {
+    setShowModal(false);
+    setEditItem(null);
+    setForm({ name: "", quantity: "", unit: "", category: "", minStock: "" });
+  };
+
   const exportCSV = () => {
     const headers = ["Material", "Quantity", "Unit", "Category", "Min Stock", "Status", "Last Updated"];
-    const rows = filtered.map((m) => [
-      m.name,
-      m.quantity,
-      m.unit,
-      m.category,
-      m.minStock,
-      getStockStatus(m).status,
-      m.lastUpdated
-    ]);
-    const csv = [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
+    const rows = filtered.map((m) => [m.name, m.quantity, m.unit, m.category, m.minStock, getStockStatus(m).status, m.lastUpdated]);
+    const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `inventory_${new Date().toISOString()}.csv`;
+    a.download = `inventory_${new Date().toISOString().split("T")[0]}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
 
-  const getStockStatus = (material) => {
-    const percentage = (material.quantity / material.minStock) * 100;
-    if (material.quantity < material.minStock * 0.5) {
-      return { status: "Critical", color: "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-200" };
-    } else if (material.quantity < material.minStock) {
-      return { status: "Low Stock", color: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-200" };
-    }
-    return { status: "In Stock", color: "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-200" };
-  };
-
-  const categories = ["all", ...new Set(materials.map(m => m.category))];
+  const categories = ["all", ...new Set(materials.map((m) => m.category).filter(Boolean))];
 
   const filtered = materials
     .filter((m) => m.name.toLowerCase().includes(search.toLowerCase()))
     .filter((m) => categoryFilter === "all" || m.category === categoryFilter)
     .filter((m) => {
       if (statusFilter === "all") return true;
-      const status = getStockStatus(m).status;
-      return status === statusFilter;
+      return getStockStatus(m).status === statusFilter;
     });
 
   const stats = {
-    total: materials.length,
-    lowStock: materials.filter(m => getStockStatus(m).status === "Low Stock").length,
-    critical: materials.filter(m => getStockStatus(m).status === "Critical").length,
-    totalValue: materials.reduce((sum, m) => sum + m.quantity, 0)
+    total:    materials.length,
+    lowStock: materials.filter((m) => getStockStatus(m).status === "Low Stock").length,
+    critical: materials.filter((m) => getStockStatus(m).status === "Critical").length,
+    totalUnits: materials.reduce((sum, m) => sum + m.quantity, 0),
   };
 
+  const inputCls =
+    "w-full border-2 border-gray-200 dark:border-gray-600 px-3 py-2.5 rounded-xl " +
+    "bg-white dark:bg-gray-700/60 text-gray-900 dark:text-white placeholder-gray-400 " +
+    "dark:placeholder-gray-500 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 " +
+    "outline-none transition-all";
+
+  /* ── Loading ── */
+  if (loading)
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-gray-50 dark:bg-gray-900">
+        <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+        <p className="text-gray-500 dark:text-gray-400 font-medium animate-pulse">Loading inventory…</p>
+      </div>
+    );
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 transition-colors duration-300">
-      <div className="p-4 md:p-8 max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-          <div>
-            <h1 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-1">
-              Inventory Management
-            </h1>
-            <p className="text-gray-600 dark:text-gray-400 text-sm">
-              Track and manage your construction materials
-            </p>
-          </div>
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
 
-          <div className="flex items-center gap-3">
-            {/* <button
-              onClick={() => setDarkMode(!darkMode)}
-              className="p-3 rounded-xl bg-white dark:bg-gray-800 shadow-md hover:shadow-lg hover:scale-105 transition-all duration-200 border border-gray-200 dark:border-gray-700"
-              title={darkMode ? "Switch to light mode" : "Switch to dark mode"}
-            >
-              {darkMode ? (
-                <Sun size={20} className="text-yellow-500" />
-              ) : (
-                <Moon size={20} className="text-gray-700" />
-              )}
-            </button> */}
+      {/* Top accent bar */}
+      <div className="h-1 w-full bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500" />
 
-            <button
-              onClick={() => {
-                setShowModal(true);
-                setEditItem(null);
-                setForm({ name: "", quantity: "", unit: "", category: "", minStock: "" });
-              }}
-              className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white px-5 py-3 rounded-xl shadow-md hover:shadow-lg transition-all font-medium"
-            >
-              <Plus size={18} /> Add/Update Material
-            </button>
-          </div>
-        </div>
+      <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">
-                Total Items
-              </h3>
-              <div className="p-3 bg-blue-100 dark:bg-blue-900 rounded-xl">
-                <Package className="w-6 h-6 text-blue-600 dark:text-blue-300" />
-              </div>
+        {/* ── Header ── */}
+        <header className="flex items-center justify-between gap-3 mb-6">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="p-2 bg-blue-600 rounded-xl shadow-lg shadow-blue-200 dark:shadow-blue-900/40 flex-shrink-0">
+              <Package className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
             </div>
-            <p className="text-3xl font-bold text-gray-900 dark:text-white">{stats.total}</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">Unique materials</p>
+            <div className="min-w-0">
+              <h1 className="text-xl sm:text-3xl font-bold text-gray-900 dark:text-white tracking-tight truncate">
+                Inventory
+              </h1>
+              <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 hidden sm:block">
+                Track and manage your construction materials
+              </p>
+            </div>
           </div>
 
-          <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">
-                Low Stock
-              </h3>
-              <div className="p-3 bg-yellow-100 dark:bg-yellow-900 rounded-xl">
-                <AlertTriangle className="w-6 h-6 text-yellow-600 dark:text-yellow-300" />
-              </div>
-            </div>
-            <p className="text-3xl font-bold text-gray-900 dark:text-white">{stats.lowStock}</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">Needs attention</p>
-          </div>
-
-          <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">
-                Critical
-              </h3>
-              <div className="p-3 bg-red-100 dark:bg-red-900 rounded-xl">
-                <AlertTriangle className="w-6 h-6 text-red-600 dark:text-red-300" />
-              </div>
-            </div>
-            <p className="text-3xl font-bold text-gray-900 dark:text-white">{stats.critical}</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">Urgent reorder</p>
-          </div>
-
-          <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">
-                Total Units
-              </h3>
-              <div className="p-3 bg-green-100 dark:bg-green-900 rounded-xl">
-                <TrendingUp className="w-6 h-6 text-green-600 dark:text-green-300" />
-              </div>
-            </div>
-            <p className="text-3xl font-bold text-gray-900 dark:text-white">{stats.totalValue.toLocaleString()}</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">Combined quantity</p>
-          </div>
-        </div>
-
-        {/* Filters */}
-        <div className="bg-white dark:bg-gray-800 shadow-xl rounded-2xl p-6 mb-6 border border-gray-200 dark:border-gray-700">
-          <div className="flex flex-wrap gap-3 items-center">
-            <div className="flex-1 min-w-64">
-              <div className="relative">
-                <PackageSearch className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Search materials..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="w-full pl-12 pr-4 py-3 border-2 border-gray-200 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                />
-              </div>
-            </div>
-
-            <select
-              value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
-              className="border-2 border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all cursor-pointer"
-            >
-              {categories.map(cat => (
-                <option key={cat} value={cat}>
-                  {cat === "all" ? "All Categories" : cat}
-                </option>
-              ))}
-            </select>
-
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="border-2 border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all cursor-pointer"
-            >
-              <option value="all">All Status</option>
-              <option value="In Stock">In Stock</option>
-              <option value="Low Stock">Low Stock</option>
-              <option value="Critical">Critical</option>
-            </select>
-
+          <div className="flex items-center gap-2 flex-shrink-0">
             <button
               onClick={exportCSV}
-              className="px-4 py-3 bg-gradient-to-r from-green-600 to-green-500 hover:from-green-700 hover:to-green-600 text-white rounded-xl shadow-md hover:shadow-lg transition-all flex items-center gap-2 font-medium"
+              className="hidden sm:flex items-center gap-1.5 px-3 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-xl text-xs font-semibold shadow-sm transition-all"
             >
-              <Download size={18} />
-              Export CSV
+              <Download className="w-4 h-4 text-green-600" />
+              <span>Export</span>
+            </button>
+            <button
+              onClick={openAddModal}
+              className="flex items-center gap-1.5 px-3 sm:px-4 py-2 sm:py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 active:scale-95 text-white rounded-xl shadow-md shadow-blue-200 dark:shadow-blue-900/40 font-semibold text-xs sm:text-sm transition-all whitespace-nowrap"
+            >
+              <Plus className="w-4 h-4 flex-shrink-0" />
+              <span>Add Material</span>
             </button>
           </div>
-        </div>
+        </header>
 
-        {/* Inventory Table */}
-        <div className="bg-white dark:bg-gray-800 shadow-xl rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-700">
-          <div className="overflow-x-auto">
+        {/* ── Stats Cards ── */}
+        <section className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
+          {[
+            { label: "Total Items",  value: stats.total,                        sub: "Unique materials", icon: <Package className="w-5 h-5 text-blue-600 dark:text-blue-400" />,        bg: "bg-blue-50 dark:bg-blue-900/20"   },
+            { label: "Low Stock",    value: stats.lowStock,                     sub: "Needs attention",  icon: <AlertTriangle className="w-5 h-5 text-amber-500" />,                    bg: "bg-amber-50 dark:bg-amber-900/20" },
+            { label: "Critical",     value: stats.critical,                     sub: "Urgent reorder",   icon: <AlertTriangle className="w-5 h-5 text-red-500" />,                      bg: "bg-red-50 dark:bg-red-900/20"     },
+            { label: "Total Units",  value: stats.totalUnits.toLocaleString(),  sub: "Combined qty",     icon: <TrendingUp className="w-5 h-5 text-green-600 dark:text-green-400" />,   bg: "bg-green-50 dark:bg-green-900/20" },
+          ].map(({ label, value, sub, icon, bg }) => (
+            <div key={label} className="bg-white dark:bg-gray-800 rounded-2xl p-4 sm:p-5 border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md transition-all duration-200 hover:-translate-y-0.5">
+              <div className="flex items-start justify-between gap-2 mb-3">
+                <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider leading-tight">{label}</p>
+                <div className={`p-2 rounded-lg ${bg} flex-shrink-0`}>{icon}</div>
+              </div>
+              <p className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">{value}</p>
+              <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">{sub}</p>
+            </div>
+          ))}
+        </section>
+
+        {/* ── Filters ── */}
+        <section className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm p-3 sm:p-4 mb-4 sm:mb-6">
+          <div className="flex flex-col sm:flex-row gap-3">
+            {/* Search */}
+            <div className="flex-1 relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+              <input
+                type="text"
+                placeholder="Search materials…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full pl-9 pr-9 py-2.5 border-2 border-gray-200 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-700/60 text-gray-900 dark:text-white placeholder-gray-400 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+              />
+              {search && (
+                <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+
+            <div className="flex gap-2 flex-wrap sm:flex-nowrap">
+              <select
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilter(e.target.value)}
+                className="flex-1 sm:flex-none border-2 border-gray-200 dark:border-gray-600 rounded-xl px-3 py-2.5 bg-gray-50 dark:bg-gray-700/60 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all cursor-pointer min-w-[130px]"
+              >
+                {categories.map((cat) => (
+                  <option key={cat} value={cat}>{cat === "all" ? "All Categories" : cat}</option>
+                ))}
+              </select>
+
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="flex-1 sm:flex-none border-2 border-gray-200 dark:border-gray-600 rounded-xl px-3 py-2.5 bg-gray-50 dark:bg-gray-700/60 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all cursor-pointer min-w-[120px]"
+              >
+                <option value="all">All Status</option>
+                <option value="In Stock">In Stock</option>
+                <option value="Low Stock">Low Stock</option>
+                <option value="Critical">Critical</option>
+              </select>
+
+              {/* Mobile export */}
+              <button
+                onClick={exportCSV}
+                className="sm:hidden flex items-center justify-center gap-1.5 px-3 py-2.5 bg-white dark:bg-gray-700 border-2 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 rounded-xl text-sm font-semibold transition-all"
+              >
+                <Download className="w-4 h-4 text-green-600" />
+              </button>
+            </div>
+          </div>
+
+          {/* Active filter summary */}
+          {(search || categoryFilter !== "all" || statusFilter !== "all") && (
+            <div className="flex items-center justify-between mt-2.5 pt-2.5 border-t border-gray-100 dark:border-gray-700">
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                <span className="font-semibold text-blue-600">{filtered.length}</span> of {materials.length} materials
+              </p>
+              <button
+                onClick={() => { setSearch(""); setCategoryFilter("all"); setStatusFilter("all"); }}
+                className="text-xs text-red-500 hover:text-red-600 font-medium flex items-center gap-1"
+              >
+                <X className="w-3 h-3" /> Clear
+              </button>
+            </div>
+          )}
+        </section>
+
+        {/* ── Empty state ── */}
+        {filtered.length === 0 && (
+          <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm py-16 flex flex-col items-center gap-3">
+            <div className="p-4 bg-gray-100 dark:bg-gray-700 rounded-2xl">
+              <PackageSearch className="w-10 h-10 text-gray-300 dark:text-gray-500" />
+            </div>
+            <p className="text-gray-600 dark:text-gray-400 font-semibold">No materials found</p>
+            <p className="text-gray-400 dark:text-gray-500 text-sm">Try adjusting your search or filters</p>
+          </div>
+        )}
+
+        {/* ═══════════════════════════════════════════════
+            MOBILE & TABLET (<lg) — card list
+        ═══════════════════════════════════════════════ */}
+        {filtered.length > 0 && (
+          <div className="lg:hidden flex flex-col gap-3">
+            {filtered.map((m) => {
+              const ss = getStockStatus(m);
+              const barW = getBarWidth(m);
+              const barC = getBarColor(m);
+              return (
+                <div key={m._id} className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+                  <div className="h-1 bg-gradient-to-r from-blue-500 to-indigo-500" />
+                  <div className="p-4">
+                    {/* Top row */}
+                    <div className="flex items-start justify-between gap-2 mb-3">
+                      <div className="min-w-0">
+                        <p className="font-bold text-gray-900 dark:text-white text-sm truncate">{m.name}</p>
+                        <div className="flex items-center gap-2 mt-1 flex-wrap">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-xs font-medium rounded-md">
+                            <Tag className="w-3 h-3" />{m.category}
+                          </span>
+                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs font-bold rounded-full ${ss.badge}`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${ss.dot}`} />
+                            {ss.status}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        <button onClick={() => openEditModal(m)}
+                          className="p-2 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-all">
+                          <Edit className="w-4 h-4" />
+                        </button>
+                        <button onClick={() => handleDelete(m._id)}
+                          className="p-2 text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-all">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Detail grid */}
+                    <div className="grid grid-cols-3 gap-3 mb-3 text-xs">
+                      <div>
+                        <p className="text-gray-400 dark:text-gray-500 mb-0.5">Quantity</p>
+                        <p className="font-bold text-gray-900 dark:text-white">{m.quantity.toLocaleString()} <span className="font-normal text-gray-500">{m.unit}</span></p>
+                      </div>
+                      <div>
+                        <p className="text-gray-400 dark:text-gray-500 mb-0.5">Min Stock</p>
+                        <p className="font-semibold text-gray-700 dark:text-gray-300">{m.minStock}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-400 dark:text-gray-500 mb-0.5 flex items-center gap-1"><Calendar className="w-3 h-3" />Updated</p>
+                        <p className="font-semibold text-gray-700 dark:text-gray-300">{m.lastUpdated}</p>
+                      </div>
+                    </div>
+
+                    {/* Stock bar */}
+                    <div>
+                      <div className="flex justify-between text-xs text-gray-400 dark:text-gray-500 mb-1">
+                        <span>Stock level</span>
+                        <span>{barW}%</span>
+                      </div>
+                      <div className="h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+                        <div className={`h-full rounded-full transition-all ${barC}`} style={{ width: `${barW}%` }} />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+            <p className="text-xs text-center text-gray-400 dark:text-gray-500 py-2">
+              {filtered.length} material{filtered.length !== 1 ? "s" : ""}
+            </p>
+          </div>
+        )}
+
+        {/* ═══════════════════════════════════════════════
+            DESKTOP (lg+) — full table
+        ═══════════════════════════════════════════════ */}
+        {filtered.length > 0 && (
+          <div className="hidden lg:block bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
             <table className="w-full">
-              <thead className="bg-gradient-to-r from-gray-100 to-gray-50 dark:from-gray-700 dark:to-gray-800 border-b-2 border-gray-200 dark:border-gray-600">
-                <tr>
-                  <th className="py-4 px-6 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                    Material
-                  </th>
-                  <th className="py-4 px-6 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                    Category
-                  </th>
-                  <th className="py-4 px-6 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                    Quantity
-                  </th>
-                  <th className="py-4 px-6 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                    Unit
-                  </th>
-                  <th className="py-4 px-6 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                    Min Stock
-                  </th>
-                  <th className="py-4 px-6 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="py-4 px-6 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                    Last Updated
-                  </th>
-                  <th className="py-4 px-6 text-center text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                    Actions
-                  </th>
+              <thead>
+                <tr className="bg-gray-50 dark:bg-gray-700/50 border-b-2 border-gray-100 dark:border-gray-700">
+                  {["Material", "Category", "Quantity", "Unit", "Min Stock", "Stock Level", "Status", "Last Updated", "Actions"].map((h) => (
+                    <th key={h} className="py-3.5 px-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
+                      {h}
+                    </th>
+                  ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                {filtered.length === 0 && (
-                  <tr>
-                    <td colSpan="8" className="py-16 text-center">
-                      <div className="flex flex-col items-center gap-3">
-                        <div className="p-4 bg-gray-100 dark:bg-gray-700 rounded-full">
-                          <PackageSearch className="w-12 h-12 text-gray-400" />
-                        </div>
-                        <p className="text-gray-500 dark:text-gray-400 text-lg font-medium">No materials found</p>
-                        <p className="text-gray-400 dark:text-gray-500 text-sm">Try adjusting your search or filters</p>
-                      </div>
-                    </td>
-                  </tr>
-                )}
-
-                {filtered.map((m, idx) => {
-                  const stockStatus = getStockStatus(m);
+              <tbody className="divide-y divide-gray-100 dark:divide-gray-700/60">
+                {filtered.map((m) => {
+                  const ss = getStockStatus(m);
+                  const barW = getBarWidth(m);
+                  const barC = getBarColor(m);
                   return (
-                    <tr
-                      key={m.id}
-                      className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-150"
-                    >
-                      <td className="py-4 px-6">
-                        <span className="font-semibold text-gray-900 dark:text-white">{m.name}</span>
+                    <tr key={m._id} className="hover:bg-blue-50/40 dark:hover:bg-blue-900/10 transition-colors group">
+                      <td className="py-3.5 px-4">
+                        <span className="font-semibold text-gray-900 dark:text-white text-sm">{m.name}</span>
                       </td>
-                      <td className="py-4 px-6">
-                        <span className="inline-flex items-center px-3 py-1 text-xs font-medium rounded-lg bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200">
-                          {m.category}
+                      <td className="py-3.5 px-4">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 text-xs font-medium rounded-lg">
+                          <Tag className="w-3 h-3" />{m.category}
                         </span>
                       </td>
-                      <td className="py-4 px-6 text-gray-700 dark:text-gray-300 font-semibold">
-                        {m.quantity.toLocaleString()}
+                      <td className="py-3.5 px-4">
+                        <span className="font-bold text-gray-900 dark:text-white text-sm">{m.quantity.toLocaleString()}</span>
                       </td>
-                      <td className="py-4 px-6 text-gray-700 dark:text-gray-300">{m.unit}</td>
-                      <td className="py-4 px-6 text-gray-700 dark:text-gray-300">{m.minStock}</td>
-                      <td className="py-4 px-6">
-                        <span className={`inline-flex items-center px-3 py-1 text-xs font-bold rounded-full ${stockStatus.color}`}>
-                          <span className="w-2 h-2 rounded-full bg-current mr-2"></span>
-                          {stockStatus.status}
+                      <td className="py-3.5 px-4 text-sm text-gray-500 dark:text-gray-400">{m.unit}</td>
+                      <td className="py-3.5 px-4 text-sm text-gray-600 dark:text-gray-300">{m.minStock}</td>
+                      <td className="py-3.5 px-4 w-32">
+                        <div className="flex items-center gap-2">
+                          <div className="flex-1 h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+                            <div className={`h-full rounded-full transition-all ${barC}`} style={{ width: `${barW}%` }} />
+                          </div>
+                          <span className="text-xs text-gray-400 w-8 text-right">{barW}%</span>
+                        </div>
+                      </td>
+                      <td className="py-3.5 px-4">
+                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold rounded-full ${ss.badge}`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${ss.dot}`} />
+                          {ss.status}
                         </span>
                       </td>
-                      <td className="py-4 px-6 text-gray-700 dark:text-gray-300 text-sm">{m.lastUpdated}</td>
-                      <td className="py-4 px-6">
-                        <div className="flex justify-center gap-2">
-                          <button
-                            onClick={() => {
-                              setEditItem(m);
-                              setForm(m);
-                              setShowModal(true);
-                            }}
-                            className="p-2 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900 rounded-lg transition-all"
-                            title="Edit"
-                          >
-                            <Edit size={18} />
+                      <td className="py-3.5 px-4">
+                        <span className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1.5">
+                          <Calendar className="w-3.5 h-3.5" />{m.lastUpdated}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-4">
+                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button onClick={() => openEditModal(m)}
+                            className="p-1.5 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/40 rounded-lg transition-all" title="Edit">
+                            <Edit className="w-4 h-4" />
                           </button>
-                          <button
-                            onClick={() => handleDelete(m.id)}
-                            className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900 rounded-lg transition-all"
-                            title="Delete"
-                          >
-                            <Trash2 size={18} />
+                          <button onClick={() => handleDelete(m._id)}
+                            className="p-1.5 text-red-500 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 rounded-lg transition-all" title="Delete">
+                            <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
                       </td>
@@ -413,427 +463,122 @@ console.log(fetchMaterials);
                 })}
               </tbody>
             </table>
-          </div>
-        </div>
-
-        {/* Modal */}
-        {showModal && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-white dark:bg-gray-800 p-6 md:p-8 rounded-2xl shadow-2xl w-full max-w-md border border-gray-200 dark:border-gray-700 transform transition-all">
-              <h2 className="text-2xl font-bold mb-6 text-gray-900 dark:text-white">
-                {editItem ? "Edit Material" : "Add Material"}
-              </h2>
-
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Select Material *
-                  </label>
-                  <select
-                    value={form.name}
-                    onChange={(e) => {
-                      const selectedName = e.target.value;
-                      const selectedMaterial = materials.find(m => m.name === selectedName);
-                      if (selectedMaterial) {
-                        const suggestedQuantity = Math.max(0, selectedMaterial.minStock - selectedMaterial.quantity);
-                        setForm({
-                          name: selectedMaterial.name,
-                          quantity: suggestedQuantity.toString(),
-                          unit: selectedMaterial.unit,
-                          category: selectedMaterial.category,
-                          minStock: selectedMaterial.minStock.toString()
-                        });
-                      } else {
-                        setForm({ ...form, name: selectedName });
-                      }
-                    }}
-                    className="w-full px-4 py-2.5 border-2 border-gray-200 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                  >
-                    <option value="">Select a material</option>
-                    {materials.map(m => (
-                      <option key={m._id} value={m.name}>{m.name}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Category *
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g., Building Materials"
-                    value={form.category}
-                    onChange={(e) => setForm({ ...form, category: e.target.value })}
-                    className="w-full px-4 py-2.5 border-2 border-gray-200 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Quantity *
-                    </label>
-                    <input
-                      type="number"
-                      placeholder="120"
-                      value={form.quantity}
-                      onChange={(e) => setForm({ ...form, quantity: e.target.value })}
-                      className="w-full px-4 py-2.5 border-2 border-gray-200 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Unit *
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="bags"
-                      value={form.unit}
-                      onChange={(e) => setForm({ ...form, unit: e.target.value })}
-                      className="w-full px-4 py-2.5 border-2 border-gray-200 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Minimum Stock Level
-                  </label>
-                  <input
-                    type="number"
-                    placeholder="50"
-                    value={form.minStock}
-                    onChange={(e) => setForm({ ...form, minStock: e.target.value })}
-                    className="w-full px-4 py-2.5 border-2 border-gray-200 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                  />
-                </div>
-              </div>
-
-              <div className="flex justify-end mt-6 gap-3">
-                <button
-                  onClick={() => {
-                    setShowModal(false);
-                    setEditItem(null);
-                    setForm({ name: "", quantity: "", unit: "", category: "", minStock: "" });
-                  }}
-                  className="px-5 py-2.5 rounded-xl border-2 border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all font-medium"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleSave}
-                  className="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white rounded-xl shadow-md hover:shadow-lg transition-all font-medium"
-                >
-                  {editItem ? "Update" : "Add Material"}
-                </button>
-              </div>
+            <div className="px-4 py-3 border-t border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-700/20">
+              <p className="text-xs text-gray-400 dark:text-gray-500">
+                {filtered.length} material{filtered.length !== 1 ? "s" : ""} shown
+              </p>
             </div>
           </div>
         )}
       </div>
+
+      {/* ── Modal ── */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="bg-white dark:bg-gray-800 w-full sm:max-w-md sm:rounded-2xl rounded-t-3xl shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+
+            {/* Modal header */}
+            <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-5 py-4 flex items-center justify-between">
+              <h2 className="text-base font-bold text-white">
+                {editItem ? "Edit Material" : "Add / Update Material"}
+              </h2>
+              <button onClick={closeModal} className="p-1.5 hover:bg-white/20 rounded-lg transition-colors">
+                <X className="w-5 h-5 text-white" />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4 max-h-[70vh] overflow-y-auto">
+
+              {/* Material name / select */}
+              <div>
+                <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5">
+                  <Package className="w-3.5 h-3.5" /> Material Name *
+                </label>
+                {!editItem ? (
+                  <select
+                    value={form.name}
+                    onChange={(e) => {
+                      const sel = e.target.value;
+                      const existing = materials.find((m) => m.name === sel);
+                      if (existing) {
+                        setForm({
+                          name: existing.name,
+                          quantity: String(Math.max(0, existing.minStock - existing.quantity)),
+                          unit: existing.unit,
+                          category: existing.category,
+                          minStock: String(existing.minStock),
+                        });
+                      } else {
+                        setForm({ ...form, name: sel });
+                      }
+                    }}
+                    className={inputCls}
+                  >
+                    <option value="">Select or add new material…</option>
+                    {materials.map((m) => (
+                      <option key={m._id} value={m.name}>{m.name}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <input type="text" value={form.name}
+                    onChange={(e) => setForm({ ...form, name: e.target.value })}
+                    placeholder="Material name" className={inputCls} />
+                )}
+              </div>
+
+              {/* Category */}
+              <div>
+                <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5">
+                  <Tag className="w-3.5 h-3.5" /> Category *
+                </label>
+                <input type="text" value={form.category}
+                  onChange={(e) => setForm({ ...form, category: e.target.value })}
+                  placeholder="e.g. Building Materials" className={inputCls} />
+              </div>
+
+              {/* Qty + Unit */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5">
+                    <Layers className="w-3.5 h-3.5" /> Quantity *
+                  </label>
+                  <input type="number" min="0" value={form.quantity}
+                    onChange={(e) => setForm({ ...form, quantity: e.target.value })}
+                    placeholder="0" className={inputCls} />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5 block">Unit *</label>
+                  <input type="text" value={form.unit}
+                    onChange={(e) => setForm({ ...form, unit: e.target.value })}
+                    placeholder="bags / tons…" className={inputCls} />
+                </div>
+              </div>
+
+              {/* Min stock */}
+              <div>
+                <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5">
+                  <AlertTriangle className="w-3.5 h-3.5" /> Minimum Stock Level
+                </label>
+                <input type="number" min="0" value={form.minStock}
+                  onChange={(e) => setForm({ ...form, minStock: e.target.value })}
+                  placeholder="50" className={inputCls} />
+              </div>
+
+              {/* Buttons */}
+              <div className="flex flex-col-reverse sm:flex-row gap-3 pt-2">
+                <button onClick={closeModal}
+                  className="w-full sm:w-auto px-5 py-2.5 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-xl font-semibold text-sm transition-all active:scale-95">
+                  Cancel
+                </button>
+                <button onClick={handleSave}
+                  className="w-full sm:w-auto flex-1 px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl font-semibold text-sm transition-all active:scale-95 shadow-md shadow-blue-200 dark:shadow-blue-900/30">
+                  {editItem ? "Update Material" : "Save Material"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
-// InventoryPreview.jsx
-// Place this file in `src/pages/InventoryPreview.jsx` of your React app.
-// Requirements: Tailwind CSS configured, framer-motion and lucide-react installed.
-// Install: npm i framer-motion lucide-react
-
-// // InventoryPreview.jsx
-// // Place this file in `src/pages/InventoryPreview.jsx` of your React app.
-// // Requirements: Tailwind CSS configured, framer-motion and lucide-react installed.
-// // Install: npm i framer-motion lucide-react
-
-// import React, { useState, useEffect } from "react";
-// import { Plus, Edit, Trash2, PackageSearch } from "lucide-react";
-// import { motion, AnimatePresence } from "framer-motion";
-
-// export default function InventoryPreview() {
-//   const initial = [
-//     { id: 1, name: "Cement", quantity: 120, unit: "bags", note: "OPC 43" },
-//     { id: 2, name: "Sand", quantity: 80, unit: "tons", note: "River sand" },
-//     { id: 3, name: "Iron Rods", quantity: 45, unit: "bundles", note: "12mm" },
-//     { id: 4, name: "Bricks", quantity: 5000, unit: "pieces", note: "9x4.5x3" },
-//   ];
-
-//   const [materials, setMaterials] = useState(initial);
-//   const [search, setSearch] = useState("");
-//   const [showModal, setShowModal] = useState(false);
-//   const [editItem, setEditItem] = useState(null);
-//   const [form, setForm] = useState({ name: "", quantity: "", unit: "", note: "" });
-//   const [sortKey, setSortKey] = useState("name");
-//   const [lowThreshold, setLowThreshold] = useState(50);
-
-//   useEffect(() => {
-//     // keep unit suggestions limited to our four materials
-//     if (form.name) {
-//       const map = {
-//         Cement: "bags",
-//         Sand: "tons",
-//         "Iron Rods": "bundles",
-//         Bricks: "pieces",
-//       };
-//       if (map[form.name]) setForm((f) => ({ ...f, unit: map[form.name] }));
-//     }
-//     // eslint-disable-next-line react-hooks/exhaustive-deps
-//   }, [form.name]);
-
-//   const handleSave = () => {
-//     if (!form.name || form.quantity === "" || !form.unit) {
-//       alert("Please fill all required fields (name, quantity, unit).");
-//       return;
-//     }
-
-//     if (editItem) {
-//       setMaterials((prev) =>
-//         prev.map((m) => (m.id === editItem.id ? { ...m, ...form, quantity: Number(form.quantity) } : m))
-//       );
-//     } else {
-//       // restrict names to the 4 allowed materials
-//       const allowed = ["Cement", "Sand", "Iron Rods", "Bricks"];
-//       if (!allowed.includes(form.name)) {
-//         alert("Material must be one of: Cement, Sand, Iron Rods, Bricks");
-//         return;
-//       }
-//       setMaterials((prev) => [
-//         ...prev,
-//         { id: Date.now(), name: form.name, quantity: Number(form.quantity), unit: form.unit, note: form.note },
-//       ]);
-//     }
-
-//     setForm({ name: "", quantity: "", unit: "", note: "" });
-//     setEditItem(null);
-//     setShowModal(false);
-//   };
-
-//   const handleDelete = (id) => {
-//     if (confirm("Delete this material record?")) setMaterials((p) => p.filter((m) => m.id !== id));
-//   };
-
-//   const filtered = materials
-//     .filter((m) => m.name.toLowerCase().includes(search.toLowerCase()))
-//     .sort((a, b) => {
-//       if (sortKey === "name") return a.name.localeCompare(b.name);
-//       if (sortKey === "quantity") return b.quantity - a.quantity;
-//       return 0;
-//     });
-
-//   return (
-//     <div className="p-6 min-h-screen bg-gray-50">
-//       <div className="max-w-6xl mx-auto">
-//         {/* Header */}
-//         <div className="flex items-start justify-between gap-4 mb-6">
-//           <div>
-//             <h1 className="text-2xl font-bold text-gray-800">Inventory</h1>
-//             <p className="text-sm text-gray-500 mt-1">Manage Cement, Sand, Iron Rods & Bricks</p>
-//           </div>
-
-//           <div className="flex items-center gap-3">
-//             <div className="flex items-center bg-white rounded-lg p-2 border">
-//               <PackageSearch size={16} className="text-gray-500 mr-2" />
-//               <input
-//                 className="outline-none text-sm w-48"
-//                 placeholder="Search materials..."
-//                 value={search}
-//                 onChange={(e) => setSearch(e.target.value)}
-//               />
-//             </div>
-
-//             <select
-//               value={sortKey}
-//               onChange={(e) => setSortKey(e.target.value)}
-//               className="bg-white border rounded-lg p-2 text-sm"
-//             >
-//               <option value="name">Sort: Name</option>
-//               <option value="quantity">Sort: Quantity (desc)</option>
-//             </select>
-
-//             <button
-//               onClick={() => {
-//                 setEditItem(null);
-//                 setForm({ name: "", quantity: "", unit: "", note: "" });
-//                 setShowModal(true);
-//               }}
-//               className="flex items-center gap-2 bg-blue-600 text-white px-3 py-2 rounded-lg shadow hover:bg-blue-700"
-//             >
-//               <Plus size={16} /> Add
-//             </button>
-//           </div>
-//         </div>
-
-//         {/* Overview cards */}
-//         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-//           {materials.map((m) => (
-//             <div key={m.id} className="bg-white p-4 rounded-2xl shadow-sm border">
-//               <div className="flex items-center justify-between">
-//                 <div>
-//                   <div className="text-sm text-gray-500">{m.name}</div>
-//                   <div className="text-xl font-semibold">{m.quantity} {m.unit}</div>
-//                 </div>
-//                 <div>
-//                   <div
-//                     className={`px-2 py-1 rounded-full text-sm font-medium ${
-//                       m.quantity < lowThreshold ? "bg-red-100 text-red-600" : "bg-green-100 text-green-700"
-//                     }`}
-//                   >
-//                     {m.quantity < lowThreshold ? "Low" : "OK"}
-//                   </div>
-//                 </div>
-//               </div>
-//               <div className="text-xs text-gray-400 mt-2">{m.note}</div>
-//               <div className="flex gap-2 mt-4">
-//                 <button
-//                   onClick={() => {
-//                     setEditItem(m);
-//                     setForm({ name: m.name, quantity: String(m.quantity), unit: m.unit, note: m.note || "" });
-//                     setShowModal(true);
-//                   }}
-//                   className="flex-1 px-3 py-2 border rounded-lg text-sm flex items-center justify-center gap-2"
-//                 >
-//                   <Edit size={14} /> Edit
-//                 </button>
-//                 <button
-//                   onClick={() => handleDelete(m.id)}
-//                   className="px-3 py-2 border rounded-lg text-sm text-red-600"
-//                 >
-//                   <Trash2 size={14} />
-//                 </button>
-//               </div>
-//             </div>
-//           ))}
-//         </div>
-
-//         {/* Inventory table */}
-//         <div className="bg-white rounded-2xl shadow overflow-x-auto">
-//           <table className="min-w-full table-auto">
-//             <thead className="bg-gray-100">
-//               <tr>
-//                 <th className="text-left p-4 text-sm text-gray-600">Material</th>
-//                 <th className="text-left p-4 text-sm text-gray-600">Quantity</th>
-//                 <th className="text-left p-4 text-sm text-gray-600">Unit</th>
-//                 <th className="text-left p-4 text-sm text-gray-600">Note</th>
-//                 <th className="text-left p-4 text-sm text-gray-600">Status</th>
-//                 <th className="text-center p-4 text-sm text-gray-600">Actions</th>
-//               </tr>
-//             </thead>
-//             <tbody>
-//               {filtered.map((m) => (
-//                 <tr key={m.id} className="border-t hover:bg-gray-50">
-//                   <td className="p-4 font-medium">{m.name}</td>
-//                   <td className="p-4">{m.quantity}</td>
-//                   <td className="p-4">{m.unit}</td>
-//                   <td className="p-4 text-sm text-gray-500">{m.note}</td>
-//                   <td className="p-4">
-//                     <span className={`px-3 py-1 rounded-full text-sm font-medium ${m.quantity < lowThreshold ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'}`}>
-//                       {m.quantity < lowThreshold ? 'Low Stock' : 'In Stock'}
-//                     </span>
-//                   </td>
-//                   <td className="p-4 flex justify-center gap-2">
-//                     <button
-//                       onClick={() => {
-//                         setEditItem(m);
-//                         setForm({ name: m.name, quantity: String(m.quantity), unit: m.unit, note: m.note || "" });
-//                         setShowModal(true);
-//                       }}
-//                       className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
-//                     >
-//                       <Edit size={16} />
-//                     </button>
-//                     <button onClick={() => handleDelete(m.id)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg">
-//                       <Trash2 size={16} />
-//                     </button>
-//                   </td>
-//                 </tr>
-//               ))}
-
-//               {filtered.length === 0 && (
-//                 <tr>
-//                   <td colSpan={6} className="p-6 text-center text-gray-500">No records</td>
-//                 </tr>
-//               )}
-//             </tbody>
-//           </table>
-//         </div>
-
-//         {/* Controls */}
-//         <div className="flex items-center gap-4 mt-4">
-//           <label className="text-sm text-gray-600">Low stock threshold:</label>
-//           <input
-//             type="number"
-//             value={lowThreshold}
-//             onChange={(e) => setLowThreshold(Number(e.target.value))}
-//             className="w-24 p-2 border rounded-lg"
-//           />
-
-//           <div className="ml-auto text-sm text-gray-500">Total SKUs: {materials.length}</div>
-//         </div>
-
-//         {/* Modal */}
-//         <AnimatePresence>
-//           {showModal && (
-//             <motion.div
-//               initial={{ opacity: 0 }}
-//               animate={{ opacity: 1 }}
-//               exit={{ opacity: 0 }}
-//               className="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
-//             >
-//               <motion.div
-//                 initial={{ y: 20, scale: 0.98 }}
-//                 animate={{ y: 0, scale: 1 }}
-//                 exit={{ y: 10, scale: 0.98 }}
-//                 className="bg-white rounded-2xl w-full max-w-md p-6 shadow-xl"
-//               >
-//                 <h3 className="text-lg font-semibold mb-3">{editItem ? 'Edit' : 'Add'} Material</h3>
-
-//                 <div className="grid grid-cols-1 gap-3">
-//                   <select
-//                     value={form.name}
-//                     onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-//                     className="p-2 border rounded-lg"
-//                   >
-//                     <option value="">Select material</option>
-//                     <option value="Cement">Cement</option>
-//                     <option value="Sand">Sand</option>
-//                     <option value="Iron Rods">Iron Rods</option>
-//                     <option value="Bricks">Bricks</option>
-//                   </select>
-
-//                   <input
-//                     type="number"
-//                     value={form.quantity}
-//                     onChange={(e) => setForm((f) => ({ ...f, quantity: e.target.value }))}
-//                     placeholder="Quantity"
-//                     className="p-2 border rounded-lg"
-//                   />
-
-//                   <input
-//                     type="text"
-//                     value={form.unit}
-//                     onChange={(e) => setForm((f) => ({ ...f, unit: e.target.value }))}
-//                     placeholder="Unit (e.g., bags, tons, bundles, pieces)"
-//                     className="p-2 border rounded-lg"
-//                   />
-
-//                   <input
-//                     type="text"
-//                     value={form.note}
-//                     onChange={(e) => setForm((f) => ({ ...f, note: e.target.value }))}
-//                     placeholder="Note (optional)"
-//                     className="p-2 border rounded-lg"
-//                   />
-//                 </div>
-
-//                 <div className="flex items-center justify-end gap-3 mt-4">
-//                   <button onClick={() => { setShowModal(false); setEditItem(null); }} className="px-4 py-2 border rounded-lg">Cancel</button>
-//                   <button onClick={handleSave} className="px-4 py-2 bg-blue-600 text-white rounded-lg">Save</button>
-//                 </div>
-//               </motion.div>
-//             </motion.div>
-//           )}
-//         </AnimatePresence>
-//       </div>
-//     </div>
-//   );
-// }

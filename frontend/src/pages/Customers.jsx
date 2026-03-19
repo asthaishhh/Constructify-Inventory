@@ -1,349 +1,9 @@
 import React, { useEffect, useState } from "react";
 import customersApi from "../api/customers.api";
-
-/* ─── Design tokens ──────────────────────────────────────────── */
-const T = {
-  ink:        "#1a1a2e",
-  teal:       "#0f4c5c",
-  tealMid:    "#1a6778",
-  tealLt:     "#e8f4f7",
-  tealBorder: "#c5dfe7",
-  saffron:    "#d6781e",
-  saffronLt:  "#fff4eb",
-  saffronB:   "#f0d4b0",
-  muted:      "#6b7280",
-  rule:       "#e5e7eb",
-  bg:         "#f4f1ec",
-  white:      "#ffffff",
-  red:        "#dc2626",
-  redLt:      "#fef2f2",
-};
-
-/* ─── Styles ─────────────────────────────────────────────────── */
-const css = {
-  page: {
-    minHeight: "100vh",
-    background: T.bg,
-    fontFamily: "'DM Sans', sans-serif",
-    color: T.ink,
-    padding: "32px 28px",
-  },
-
-  /* Page header */
-  pageHeader: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "flex-end",
-    marginBottom: 24,
-    paddingBottom: 20,
-    borderBottom: `1px solid ${T.rule}`,
-  },
-  pageTitle: {
-    fontFamily: "'Playfair Display', serif",
-    fontSize: 30,
-    fontWeight: 800,
-    color: T.teal,
-    letterSpacing: "-0.5px",
-    lineHeight: 1,
-    margin: 0,
-  },
-  pageTitleAccent: { color: T.saffron },
-  pageSubtitle: {
-    fontSize: 12,
-    color: T.muted,
-    marginTop: 5,
-    letterSpacing: "1.5px",
-    textTransform: "uppercase",
-    fontWeight: 500,
-  },
-  addBtn: {
-    display: "inline-flex",
-    alignItems: "center",
-    gap: 7,
-    background: T.teal,
-    color: T.white,
-    border: "none",
-    borderRadius: 8,
-    padding: "9px 18px",
-    fontSize: 12,
-    fontWeight: 600,
-    letterSpacing: "0.5px",
-    cursor: "pointer",
-    fontFamily: "'DM Sans', sans-serif",
-  },
-
-  /* ── Search bar ── */
-  searchRow: {
-    display: "flex",
-    alignItems: "center",
-    gap: 10,
-    marginBottom: 8,
-  },
-  searchWrap: (focused) => ({
-    display: "flex",
-    alignItems: "center",
-    flex: 1,
-    background: T.white,
-    border: `1.5px solid ${focused ? T.teal : T.rule}`,
-    borderRadius: 9,
-    overflow: "hidden",
-    boxShadow: focused ? `0 0 0 3px ${T.tealLt}` : "0 1px 6px rgba(15,76,92,0.06)",
-    transition: "border-color 0.15s, box-shadow 0.15s",
-  }),
-  searchIconWrap: {
-    display: "flex",
-    alignItems: "center",
-    padding: "0 12px",
-    color: T.muted,
-    flexShrink: 0,
-  },
-  searchInput: {
-    flex: 1,
-    border: "none",
-    outline: "none",
-    padding: "10px 0",
-    fontSize: 13,
-    color: T.ink,
-    fontFamily: "'DM Sans', sans-serif",
-    background: "transparent",
-  },
-  searchClearBtn: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    width: 32,
-    height: 32,
-    background: "none",
-    border: "none",
-    cursor: "pointer",
-    color: T.muted,
-    fontSize: 16,
-    borderRadius: "50%",
-    flexShrink: 0,
-    fontFamily: "'DM Sans', sans-serif",
-    marginRight: 4,
-  },
-  searchMeta: {
-    fontSize: 11,
-    color: T.muted,
-    marginBottom: 16,
-    paddingLeft: 2,
-  },
-  searchMetaCount: {
-    fontWeight: 600,
-    color: T.teal,
-  },
-  noResults: {
-    textAlign: "center",
-    padding: "40px 24px",
-    color: T.muted,
-    fontSize: 13,
-  },
-
-  /* Form card */
-  formCard: {
-    background: T.white,
-    border: `1px solid ${T.rule}`,
-    borderRadius: 12,
-    padding: "22px 24px",
-    marginBottom: 24,
-    boxShadow: "0 2px 16px rgba(15,76,92,0.07)",
-  },
-  formCardTitle: {
-    fontSize: 9,
-    fontWeight: 700,
-    letterSpacing: "2px",
-    textTransform: "uppercase",
-    color: T.saffron,
-    marginBottom: 16,
-  },
-  formGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(3, 1fr)",
-    gap: "12px 16px",
-  },
-  fieldWrap: { display: "flex", flexDirection: "column", gap: 5 },
-  fieldLabel: {
-    fontSize: 9,
-    fontWeight: 600,
-    letterSpacing: "1.5px",
-    textTransform: "uppercase",
-    color: T.muted,
-  },
-  input: (focused) => ({
-    border: `1px solid ${focused ? T.teal : T.rule}`,
-    borderRadius: 7,
-    padding: "8px 11px",
-    fontSize: 12,
-    color: T.ink,
-    fontFamily: "'DM Sans', sans-serif",
-    outline: "none",
-    background: T.white,
-    boxShadow: focused ? `0 0 0 3px ${T.tealLt}` : "none",
-    transition: "border-color 0.15s, box-shadow 0.15s",
-    width: "100%",
-    boxSizing: "border-box",
-  }),
-  formActions: {
-    display: "flex",
-    gap: 10,
-    marginTop: 18,
-    paddingTop: 16,
-    borderTop: `1px solid ${T.rule}`,
-  },
-  submitBtn: {
-    background: T.teal,
-    color: T.white,
-    border: "none",
-    borderRadius: 8,
-    padding: "9px 20px",
-    fontSize: 12,
-    fontWeight: 600,
-    cursor: "pointer",
-    fontFamily: "'DM Sans', sans-serif",
-  },
-  cancelBtn: {
-    background: T.white,
-    color: T.muted,
-    border: `1px solid ${T.rule}`,
-    borderRadius: 8,
-    padding: "9px 20px",
-    fontSize: 12,
-    fontWeight: 500,
-    cursor: "pointer",
-    fontFamily: "'DM Sans', sans-serif",
-  },
-
-  /* Error */
-  errorBar: {
-    background: T.redLt,
-    border: `1px solid #fca5a5`,
-    borderLeft: `3px solid ${T.red}`,
-    borderRadius: 8,
-    padding: "10px 14px",
-    fontSize: 12,
-    color: T.red,
-    marginBottom: 20,
-  },
-
-  /* Table card */
-  tableCard: {
-    background: T.white,
-    border: `1px solid ${T.rule}`,
-    borderRadius: 12,
-    overflow: "hidden",
-    boxShadow: "0 2px 16px rgba(15,76,92,0.07)",
-  },
-  tableWrap: { overflowX: "auto" },
-  table: { width: "100%", borderCollapse: "collapse", fontSize: 12 },
-  thead: { background: T.teal },
-  th: {
-    color: T.white,
-    fontWeight: 500,
-    fontSize: 9,
-    letterSpacing: "1.2px",
-    textTransform: "uppercase",
-    padding: "11px 14px",
-    textAlign: "left",
-    whiteSpace: "nowrap",
-    fontFamily: "'DM Sans', sans-serif",
-  },
-  tdBase: {
-    padding: "11px 14px",
-    borderBottom: `1px solid ${T.rule}`,
-    color: T.ink,
-    verticalAlign: "middle",
-    fontSize: 12,
-  },
-  tdMuted: {
-    padding: "11px 14px",
-    borderBottom: `1px solid ${T.rule}`,
-    color: T.muted,
-    verticalAlign: "middle",
-    fontSize: 12,
-  },
-  nameWrap: { display: "flex", alignItems: "center", gap: 10 },
-  avatar: {
-    width: 30,
-    height: 30,
-    borderRadius: "50%",
-    background: T.tealLt,
-    border: `1px solid ${T.tealBorder}`,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontSize: 11,
-    fontWeight: 700,
-    color: T.teal,
-    flexShrink: 0,
-    fontFamily: "'DM Sans', sans-serif",
-  },
-  namePrimary: { fontWeight: 600, color: T.ink, fontSize: 12 },
-  nameCompany: { fontSize: 10, color: T.muted, marginTop: 1 },
-  gstBadge: {
-    display: "inline-flex",
-    alignItems: "center",
-    background: T.tealLt,
-    border: `1px solid ${T.tealBorder}`,
-    borderRadius: 4,
-    padding: "2px 7px",
-    fontSize: 10,
-    fontWeight: 600,
-    color: T.teal,
-    letterSpacing: "0.3px",
-    fontFamily: "'DM Sans', monospace",
-  },
-  actionCell: {
-    padding: "11px 14px",
-    borderBottom: `1px solid ${T.rule}`,
-    verticalAlign: "middle",
-    whiteSpace: "nowrap",
-    textAlign: "right",
-  },
-  editBtn: {
-    background: T.tealLt,
-    color: T.teal,
-    border: `1px solid ${T.tealBorder}`,
-    borderRadius: 6,
-    padding: "5px 12px",
-    fontSize: 11,
-    fontWeight: 600,
-    cursor: "pointer",
-    fontFamily: "'DM Sans', sans-serif",
-    marginRight: 6,
-  },
-  deleteBtn: {
-    background: T.redLt,
-    color: T.red,
-    border: "1px solid #fca5a5",
-    borderRadius: 6,
-    padding: "5px 12px",
-    fontSize: 11,
-    fontWeight: 600,
-    cursor: "pointer",
-    fontFamily: "'DM Sans', sans-serif",
-  },
-  emptyState: {
-    textAlign: "center",
-    padding: "48px 24px",
-    color: T.muted,
-    fontSize: 13,
-  },
-  emptyIcon: { fontSize: 32, marginBottom: 10, opacity: 0.4 },
-  countChip: {
-    display: "inline-flex",
-    alignItems: "center",
-    background: T.saffronLt,
-    border: `1px solid ${T.saffronB}`,
-    borderRadius: 100,
-    padding: "2px 10px",
-    fontSize: 11,
-    fontWeight: 600,
-    color: T.saffron,
-    marginLeft: 10,
-    verticalAlign: "middle",
-  },
-};
+import {
+  Search, Plus, X, Edit2, Trash2, User, Building2,
+  Phone, Mail, MapPin, FileText, Users,
+} from "lucide-react";
 
 /* ─── Highlight matched text ─────────────────────────────────── */
 const Highlight = ({ text = "", query = "" }) => {
@@ -353,13 +13,7 @@ const Highlight = ({ text = "", query = "" }) => {
   return (
     <>
       {text.slice(0, idx)}
-      <mark style={{
-        background: T.saffronLt,
-        color: T.saffron,
-        borderRadius: 3,
-        padding: "0 2px",
-        fontWeight: 700,
-      }}>
+      <mark className="bg-amber-100 text-amber-700 rounded px-0.5 font-bold not-italic">
         {text.slice(idx, idx + query.trim().length)}
       </mark>
       {text.slice(idx + query.trim().length)}
@@ -367,16 +21,24 @@ const Highlight = ({ text = "", query = "" }) => {
   );
 };
 
+/* ─── Avatar initials ─────────────────────────────────────────── */
+const Avatar = ({ name = "" }) => {
+  const initials = name.trim().split(" ").slice(0, 2).map((w) => w[0]?.toUpperCase()).join("");
+  return (
+    <div className="w-10 h-10 rounded-full bg-blue-50 border-2 border-blue-100 dark:bg-blue-900/30 dark:border-blue-800 flex items-center justify-center text-xs font-bold text-blue-600 dark:text-blue-400 flex-shrink-0 select-none">
+      {initials || <User className="w-4 h-4" />}
+    </div>
+  );
+};
+
 /* ─── Component ───────────────────────────────────────────────── */
 const Customers = () => {
-  const [customers, setCustomers]         = useState([]);
-  const [showForm, setShowForm]           = useState(false);
-  const [loading, setLoading]             = useState(false);
-  const [error, setError]                 = useState(null);
-  const [editingId, setEditingId]         = useState(null);
-  const [focusedField, setFocusedField]   = useState(null);
-  const [searchQuery, setSearchQuery]     = useState("");
-  const [searchFocused, setSearchFocused] = useState(false);
+  const [customers, setCustomers]     = useState([]);
+  const [showForm, setShowForm]       = useState(false);
+  const [loading, setLoading]         = useState(true);
+  const [error, setError]             = useState(null);
+  const [editingId, setEditingId]     = useState(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const emptyForm = { name: "", phone: "", email: "", address: "", companyName: "", gstNumber: "" };
   const [formData, setFormData] = useState(emptyForm);
@@ -384,12 +46,13 @@ const Customers = () => {
   const user    = JSON.parse(localStorage.getItem("user") || "{}");
   const isAdmin = user?.role === "admin";
 
-  /* Filtered list — searches name + company */
   const q = searchQuery.trim().toLowerCase();
   const filteredCustomers = q
     ? customers.filter((c) =>
         (c.companyName || "").toLowerCase().includes(q) ||
-        (c.name || "").toLowerCase().includes(q)
+        (c.name        || "").toLowerCase().includes(q) ||
+        (c.phone       || "").toLowerCase().includes(q) ||
+        (c.gstNumber   || "").toLowerCase().includes(q)
       )
     : customers;
 
@@ -450,244 +113,377 @@ const Customers = () => {
     }
   };
 
-  const resetForm = () => {
-    setEditingId(null);
-    setFormData(emptyForm);
-    setShowForm(false);
-  };
+  const resetForm = () => { setEditingId(null); setFormData(emptyForm); setShowForm(false); };
 
-  const initials = (name = "") =>
-    name.trim().split(" ").slice(0, 2).map((w) => w[0]?.toUpperCase()).join("");
+  const inputCls =
+    "w-full border-2 border-gray-200 dark:border-gray-600 px-3 py-2.5 rounded-xl " +
+    "bg-white dark:bg-gray-700/60 text-gray-900 dark:text-white placeholder-gray-400 " +
+    "dark:placeholder-gray-500 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 " +
+    "outline-none transition-all";
 
-  const fields = [
-    { name: "name",        label: "Customer Name", type: "text",  required: true  },
-    { name: "phone",       label: "Phone",         type: "text",  required: true  },
-    { name: "email",       label: "Email",         type: "email", required: false },
-    { name: "companyName", label: "Company Name",  type: "text",  required: false },
-    { name: "gstNumber",   label: "GST Number",    type: "text",  required: false },
-    { name: "address",     label: "Address",       type: "text",  required: false },
-  ];
+  if (loading)
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-gray-50 dark:bg-gray-900">
+        <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+        <p className="text-gray-500 dark:text-gray-400 font-medium animate-pulse">Loading customers…</p>
+      </div>
+    );
 
   return (
-    <>
-      <link
-        href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap"
-        rel="stylesheet"
-      />
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
 
-      <div style={css.page}>
+      {/* Top accent bar */}
+      <div className="h-1 w-full bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500" />
 
-        {/* ── Page Header ── */}
-        <div style={css.pageHeader}>
-          <div>
-            <h1 style={css.pageTitle}>
-              Customer<span style={css.pageTitleAccent}>s</span>
-              <span style={css.countChip}>{customers.length}</span>
-            </h1>
-            <div style={css.pageSubtitle}>Manage your client directory</div>
+      <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+
+        {/* ── Header ── */}
+        <header className="flex items-center justify-between gap-3 mb-6">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="p-2 bg-blue-600 rounded-xl shadow-lg shadow-blue-200 dark:shadow-blue-900/40 flex-shrink-0">
+              <Users className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl sm:text-3xl font-bold text-gray-900 dark:text-white tracking-tight">
+                  Customers
+                </h1>
+                <span className="px-2 py-0.5 bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-400 text-xs font-bold rounded-full border border-indigo-200 dark:border-indigo-800 flex-shrink-0">
+                  {customers.length}
+                </span>
+              </div>
+              <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 hidden sm:block">
+                Manage your client directory
+              </p>
+            </div>
           </div>
+
           {!showForm && (
             <button
-              style={css.addBtn}
               onClick={() => setShowForm(true)}
-              onMouseEnter={(e) => (e.currentTarget.style.background = T.tealMid)}
-              onMouseLeave={(e) => (e.currentTarget.style.background = T.teal)}
+              className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 active:scale-95 text-white rounded-xl shadow-md shadow-blue-200 dark:shadow-blue-900/40 font-semibold text-xs sm:text-sm transition-all flex-shrink-0 whitespace-nowrap"
             >
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                <path d="M12 5v14M5 12h14"/>
-              </svg>
-              Add Customer
+              <Plus className="w-4 h-4 flex-shrink-0" />
+              <span>Add Customer</span>
             </button>
           )}
-        </div>
+        </header>
 
         {/* ── Error ── */}
-        {error && <div style={css.errorBar}>{error}</div>}
+        {error && (
+          <div className="flex items-start gap-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 border-l-4 border-l-red-500 rounded-xl p-3 sm:p-4 mb-4 text-xs sm:text-sm text-red-700 dark:text-red-400">
+            <span className="flex-1">{error}</span>
+            <button onClick={() => setError(null)} className="flex-shrink-0 text-red-400 hover:text-red-600">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
 
         {/* ── Add / Edit Form ── */}
         {showForm && (
-          <div style={css.formCard}>
-            <div style={css.formCardTitle}>
-              {editingId ? "✎  Edit Customer" : "+ New Customer"}
+          <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden mb-6">
+            <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-4 sm:px-5 py-4 flex items-center justify-between">
+              <h2 className="text-sm sm:text-base font-bold text-white">
+                {editingId ? "Edit Customer" : "Add New Customer"}
+              </h2>
+              <button onClick={resetForm} className="p-1.5 hover:bg-white/20 rounded-lg transition-colors">
+                <X className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+              </button>
             </div>
-            <form onSubmit={handleSubmit}>
-              <div style={css.formGrid}>
-                {fields.map(({ name, label, type, required }) => (
-                  <div key={name} style={css.fieldWrap}>
-                    <label style={css.fieldLabel}>
-                      {label}{required && <span style={{ color: T.saffron }}> *</span>}
-                    </label>
-                    <input
-                      type={type}
-                      name={name}
-                      value={formData[name]}
-                      onChange={handleChange}
-                      required={required}
-                      placeholder={`Enter ${label.toLowerCase()}`}
-                      style={css.input(focusedField === name)}
-                      onFocus={() => setFocusedField(name)}
-                      onBlur={() => setFocusedField(null)}
-                    />
-                  </div>
-                ))}
+
+            <form onSubmit={handleSubmit} className="p-4 sm:p-5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+                <div>
+                  <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5">
+                    <User className="w-3.5 h-3.5" /> Customer Name <span className="text-blue-500">*</span>
+                  </label>
+                  <input type="text" name="name" value={formData.name} onChange={handleChange}
+                    required placeholder="Enter customer name" className={inputCls} />
+                </div>
+                <div>
+                  <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5">
+                    <Phone className="w-3.5 h-3.5" /> Phone <span className="text-blue-500">*</span>
+                  </label>
+                  <input type="text" name="phone" value={formData.phone} onChange={handleChange}
+                    required placeholder="Enter phone number" className={inputCls} />
+                </div>
+                <div>
+                  <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5">
+                    <Mail className="w-3.5 h-3.5" /> Email
+                  </label>
+                  <input type="email" name="email" value={formData.email} onChange={handleChange}
+                    placeholder="Enter email address" className={inputCls} />
+                </div>
+                <div>
+                  <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5">
+                    <Building2 className="w-3.5 h-3.5" /> Company Name
+                  </label>
+                  <input type="text" name="companyName" value={formData.companyName} onChange={handleChange}
+                    placeholder="Enter company name" className={inputCls} />
+                </div>
+                <div>
+                  <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5">
+                    <FileText className="w-3.5 h-3.5" /> GST Number
+                  </label>
+                  <input type="text" name="gstNumber" value={formData.gstNumber} onChange={handleChange}
+                    placeholder="Enter GST number" className={inputCls} />
+                </div>
+                <div className="sm:col-span-2 lg:col-span-3">
+                  <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5">
+                    <MapPin className="w-3.5 h-3.5" /> Address
+                  </label>
+                  <input type="text" name="address" value={formData.address} onChange={handleChange}
+                    placeholder="Enter address" className={inputCls} />
+                </div>
               </div>
-              <div style={css.formActions}>
-                <button type="submit" style={css.submitBtn}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = T.tealMid)}
-                  onMouseLeave={(e) => (e.currentTarget.style.background = T.teal)}
-                >
-                  {editingId ? "Update Customer" : "Add Customer"}
-                </button>
-                <button type="button" style={css.cancelBtn} onClick={resetForm}>
+
+              <div className="flex flex-col-reverse sm:flex-row gap-3 mt-5 pt-4 border-t border-gray-100 dark:border-gray-700">
+                <button type="button" onClick={resetForm}
+                  className="w-full sm:w-auto px-5 py-2.5 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-xl font-semibold text-sm transition-all active:scale-95">
                   Cancel
+                </button>
+                <button type="submit"
+                  className="w-full sm:w-auto px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl font-semibold text-sm transition-all active:scale-95 shadow-md shadow-blue-200 dark:shadow-blue-900/30">
+                  {editingId ? "Update Customer" : "Add Customer"}
                 </button>
               </div>
             </form>
           </div>
         )}
 
-        {/* ── Search Bar ── */}
-        <div style={css.searchRow}>
-          <div style={css.searchWrap(searchFocused)}>
-            <div style={css.searchIconWrap}>
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
-              </svg>
-            </div>
+        {/* ── Search ── */}
+        <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm p-3 sm:p-4 mb-4 sm:mb-6">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
             <input
               type="text"
-              placeholder="Search by company or customer name…"
+              placeholder="Search by name, company, phone or GST…"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              onFocus={() => setSearchFocused(true)}
-              onBlur={() => setSearchFocused(false)}
-              style={css.searchInput}
+              className="w-full pl-9 pr-9 py-2.5 border-2 border-gray-200 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-700/60 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
             />
             {searchQuery && (
-              <button
-                style={css.searchClearBtn}
-                onClick={() => setSearchQuery("")}
-                title="Clear search"
-                onMouseEnter={(e) => (e.currentTarget.style.color = T.ink)}
-                onMouseLeave={(e) => (e.currentTarget.style.color = T.muted)}
-              >
-                ×
+              <button onClick={() => setSearchQuery("")}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                <X className="w-4 h-4" />
               </button>
             )}
           </div>
-        </div>
-
-        {/* Search result meta */}
-        {q && (
-          <div style={css.searchMeta}>
-            <span style={css.searchMetaCount}>{filteredCustomers.length}</span>
-            {" "}result{filteredCustomers.length !== 1 ? "s" : ""} for &ldquo;{searchQuery.trim()}&rdquo;
-          </div>
-        )}
-
-        {/* ── Table Card ── */}
-        <div style={css.tableCard}>
-          {loading ? (
-            <div style={css.emptyState}>
-              <div style={css.emptyIcon}>⟳</div>
-              Loading customers…
-            </div>
-          ) : filteredCustomers.length === 0 ? (
-            <div style={css.emptyState}>
-              <div style={css.emptyIcon}>{q ? "🔍" : "👤"}</div>
-              {q
-                ? <>No customers match &ldquo;<strong>{searchQuery.trim()}</strong>&rdquo;</>
-                : "No customers yet. Add your first one above."
-              }
-            </div>
-          ) : (
-            <div style={css.tableWrap}>
-              <table style={css.table}>
-                <thead style={css.thead}>
-                  <tr>
-                    <th style={css.th}>Customer</th>
-                    <th style={css.th}>Phone</th>
-                    <th style={css.th}>Email</th>
-                    <th style={css.th}>GST Number</th>
-                    <th style={css.th}>Address</th>
-                    {isAdmin && <th style={{ ...css.th, textAlign: "right" }}>Actions</th>}
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredCustomers.map((cust, i) => (
-                    <tr
-                      key={cust._id}
-                      style={{ background: i % 2 === 0 ? T.white : "#fafafa" }}
-                      onMouseEnter={(e) => {
-                        Array.from(e.currentTarget.children).forEach(
-                          (td) => (td.style.background = T.tealLt)
-                        );
-                      }}
-                      onMouseLeave={(e) => {
-                        Array.from(e.currentTarget.children).forEach(
-                          (td) => (td.style.background = i % 2 === 0 ? T.white : "#fafafa")
-                        );
-                      }}
-                    >
-                      {/* Name + company with highlight */}
-                      <td style={css.tdBase}>
-                        <div style={css.nameWrap}>
-                          <div style={css.avatar}>{initials(cust.name)}</div>
-                          <div>
-                            <div style={css.namePrimary}>
-                              <Highlight text={cust.name} query={searchQuery} />
-                            </div>
-                            {cust.companyName && (
-                              <div style={css.nameCompany}>
-                                <Highlight text={cust.companyName} query={searchQuery} />
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </td>
-
-                      <td style={css.tdMuted}>{cust.phone || "—"}</td>
-                      <td style={css.tdMuted}>{cust.email || "—"}</td>
-
-                      <td style={css.tdBase}>
-                        {cust.gstNumber
-                          ? <span style={css.gstBadge}>{cust.gstNumber}</span>
-                          : <span style={{ color: T.rule }}>—</span>
-                        }
-                      </td>
-
-                      <td style={css.tdMuted}>{cust.address || "—"}</td>
-
-                      {isAdmin && (
-                        <td style={css.actionCell}>
-                          <button
-                            style={css.editBtn}
-                            onClick={() => handleEdit(cust)}
-                            onMouseEnter={(e) => (e.currentTarget.style.background = T.tealBorder)}
-                            onMouseLeave={(e) => (e.currentTarget.style.background = T.tealLt)}
-                          >
-                            Edit
-                          </button>
-                          <button
-                            style={css.deleteBtn}
-                            onClick={() => handleDelete(cust._id)}
-                            onMouseEnter={(e) => (e.currentTarget.style.background = "#fee2e2")}
-                            onMouseLeave={(e) => (e.currentTarget.style.background = T.redLt)}
-                          >
-                            Delete
-                          </button>
-                        </td>
-                      )}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          {q && (
+            <div className="flex items-center justify-between mt-2.5 pt-2.5 border-t border-gray-100 dark:border-gray-700">
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                <span className="font-semibold text-blue-600">{filteredCustomers.length}</span>{" "}
+                result{filteredCustomers.length !== 1 ? "s" : ""} for &ldquo;{searchQuery.trim()}&rdquo;
+              </p>
+              <button onClick={() => setSearchQuery("")}
+                className="text-xs text-red-500 hover:text-red-600 font-medium flex items-center gap-1">
+                <X className="w-3 h-3" /> Clear
+              </button>
             </div>
           )}
         </div>
 
+        {/* ── Empty state ── */}
+        {filteredCustomers.length === 0 && (
+          <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm py-16 flex flex-col items-center gap-3">
+            <div className="p-4 bg-gray-100 dark:bg-gray-700 rounded-2xl">
+              {q
+                ? <Search className="w-10 h-10 text-gray-300 dark:text-gray-500" />
+                : <Users className="w-10 h-10 text-gray-300 dark:text-gray-500" />
+              }
+            </div>
+            <p className="text-gray-600 dark:text-gray-400 font-semibold">
+              {q ? `No results for "${searchQuery.trim()}"` : "No customers yet"}
+            </p>
+            <p className="text-gray-400 dark:text-gray-500 text-sm">
+              {q ? "Try a different search term" : "Add your first customer above"}
+            </p>
+          </div>
+        )}
+
+        {/* ═══════════════════════════════════════════════
+            MOBILE & TABLET  (<lg) — stacked card list
+        ═══════════════════════════════════════════════ */}
+        {filteredCustomers.length > 0 && (
+          <div className="lg:hidden flex flex-col gap-3">
+            {filteredCustomers.map((cust) => (
+              <div key={cust._id}
+                className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+                <div className="h-1 bg-gradient-to-r from-blue-500 to-indigo-500" />
+                <div className="p-4">
+
+                  {/* Top: avatar + name + action buttons */}
+                  <div className="flex items-start justify-between gap-2 mb-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <Avatar name={cust.name} />
+                      <div className="min-w-0">
+                        <p className="font-bold text-gray-900 dark:text-white text-sm truncate">
+                          <Highlight text={cust.name} query={searchQuery} />
+                        </p>
+                        {cust.companyName && (
+                          <p className="text-xs text-gray-400 dark:text-gray-500 flex items-center gap-1 mt-0.5 truncate">
+                            <Building2 className="w-3 h-3 flex-shrink-0" />
+                            <Highlight text={cust.companyName} query={searchQuery} />
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    {isAdmin && (
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        <button onClick={() => handleEdit(cust)}
+                          className="p-2 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-all">
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                        <button onClick={() => handleDelete(cust._id)}
+                          className="p-2 text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-all">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Detail rows */}
+                  <div className="flex flex-col gap-2 text-xs">
+                    {cust.phone && (
+                      <a href={`tel:${cust.phone}`}
+                        className="flex items-center gap-2 text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
+                        <Phone className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" />
+                        <span><Highlight text={cust.phone} query={searchQuery} /></span>
+                      </a>
+                    )}
+                    {cust.email && (
+                      <a href={`mailto:${cust.email}`}
+                        className="flex items-center gap-2 text-gray-600 dark:text-gray-300 hover:text-blue-600 transition-colors min-w-0">
+                        <Mail className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" />
+                        <span className="truncate">{cust.email}</span>
+                      </a>
+                    )}
+                    {cust.gstNumber && (
+                      <div className="flex items-center gap-2">
+                        <FileText className="w-3.5 h-3.5 text-indigo-500 flex-shrink-0" />
+                        <span className="font-mono font-semibold text-indigo-600 dark:text-indigo-400">
+                          <Highlight text={cust.gstNumber} query={searchQuery} />
+                        </span>
+                      </div>
+                    )}
+                    {cust.address && (
+                      <div className="flex items-start gap-2 text-gray-500 dark:text-gray-400">
+                        <MapPin className="w-3.5 h-3.5 text-gray-400 flex-shrink-0 mt-0.5" />
+                        <span className="line-clamp-2">{cust.address}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+
+            <p className="text-xs text-center text-gray-400 dark:text-gray-500 py-2">
+              {filteredCustomers.length} customer{filteredCustomers.length !== 1 ? "s" : ""}
+            </p>
+          </div>
+        )}
+
+        {/* ═══════════════════════════════════════════════
+            DESKTOP  (lg+) — full table, no scroll needed
+        ═══════════════════════════════════════════════ */}
+        {filteredCustomers.length > 0 && (
+          <div className="hidden lg:block bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+            <table className="w-full">
+              <thead>
+                <tr className="bg-gray-50 dark:bg-gray-700/50 border-b-2 border-gray-100 dark:border-gray-700">
+                  <th className="py-3.5 px-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Customer</th>
+                  <th className="py-3.5 px-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Phone</th>
+                  <th className="py-3.5 px-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Email</th>
+                  <th className="py-3.5 px-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">GST Number</th>
+                  <th className="py-3.5 px-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider xl:table-cell hidden">Address</th>
+                  {isAdmin && <th className="py-3.5 px-4 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 dark:divide-gray-700/60">
+                {filteredCustomers.map((cust) => (
+                  <tr key={cust._id}
+                    className="hover:bg-blue-50/40 dark:hover:bg-blue-900/10 transition-colors duration-100 group">
+                    <td className="py-3.5 px-4">
+                      <div className="flex items-center gap-3">
+                        <Avatar name={cust.name} />
+                        <div className="min-w-0">
+                          <p className="font-semibold text-gray-900 dark:text-white text-sm truncate max-w-[180px]">
+                            <Highlight text={cust.name} query={searchQuery} />
+                          </p>
+                          {cust.companyName && (
+                            <p className="text-xs text-gray-400 dark:text-gray-500 flex items-center gap-1 mt-0.5 truncate max-w-[180px]">
+                              <Building2 className="w-3 h-3 flex-shrink-0" />
+                              <Highlight text={cust.companyName} query={searchQuery} />
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="py-3.5 px-4 whitespace-nowrap">
+                      {cust.phone
+                        ? <a href={`tel:${cust.phone}`} className="text-sm text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1.5">
+                            <Phone className="w-3.5 h-3.5 flex-shrink-0" />
+                            <Highlight text={cust.phone} query={searchQuery} />
+                          </a>
+                        : <span className="text-gray-300 dark:text-gray-600">—</span>
+                      }
+                    </td>
+                    <td className="py-3.5 px-4">
+                      {cust.email
+                        ? <a href={`mailto:${cust.email}`}
+                            className="text-sm text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors truncate max-w-[200px] block">
+                            {cust.email}
+                          </a>
+                        : <span className="text-gray-300 dark:text-gray-600">—</span>
+                      }
+                    </td>
+                    <td className="py-3.5 px-4">
+                      {cust.gstNumber
+                        ? <span className="inline-flex items-center gap-1 px-2 py-1 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-lg text-xs font-semibold text-blue-700 dark:text-blue-400 font-mono">
+                            <FileText className="w-3 h-3 flex-shrink-0" />
+                            <Highlight text={cust.gstNumber} query={searchQuery} />
+                          </span>
+                        : <span className="text-gray-300 dark:text-gray-600">—</span>
+                      }
+                    </td>
+                    <td className="py-3.5 px-4 xl:table-cell hidden">
+                      {cust.address
+                        ? <span className="text-sm text-gray-600 dark:text-gray-300 flex items-center gap-1.5 max-w-[180px]">
+                            <MapPin className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+                            <span className="truncate">{cust.address}</span>
+                          </span>
+                        : <span className="text-gray-300 dark:text-gray-600">—</span>
+                      }
+                    </td>
+                    {isAdmin && (
+                      <td className="py-3.5 px-4">
+                        <div className="flex items-center gap-1 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button onClick={() => handleEdit(cust)}
+                            className="p-1.5 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/40 rounded-lg transition-all" title="Edit">
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                          <button onClick={() => handleDelete(cust._id)}
+                            className="p-1.5 text-red-500 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 rounded-lg transition-all" title="Delete">
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            <div className="px-4 py-3 border-t border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-700/20">
+              <p className="text-xs text-gray-400 dark:text-gray-500">
+                {filteredCustomers.length} customer{filteredCustomers.length !== 1 ? "s" : ""} shown
+              </p>
+            </div>
+          </div>
+        )}
+
       </div>
-    </>
+    </div>
   );
 };
 

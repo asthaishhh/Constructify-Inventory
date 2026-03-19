@@ -1,813 +1,45 @@
-// import React, { useMemo, useState } from "react";
-
-// // TraderOrdersDashboard.jsx
-// // Single-file React component (Tailwind CSS assumed) that demonstrates
-// // a clean dashboard for two order types: "Requested by me" and "Requested by customers".
-
-// export default function TraderOrdersDashboard() {
-//   const [activeTab, setActiveTab] = useState("mine"); // 'mine' or 'customers'
-//   const [query, setQuery] = useState("");
-//   const [statusFilter, setStatusFilter] = useState("all");
-//   const [dateFrom, setDateFrom] = useState("");
-//   const [dateTo, setDateTo] = useState("");
-
-//   // Sample mock data. Replace with API fetch in production.
-//   const orders = useMemo(
-//     () => [
-//       {
-//         id: "ORD-1001",
-//         type: "mine",
-//         client: "N/A",
-//         pair: "BTC/USDT",
-//         side: "Buy",
-//         quantity: 0.5,
-//         price: 54000,
-//         status: "open",
-//         createdAt: "2025-10-15",
-//       },
-//       {
-//         id: "ORD-1002",
-//         type: "customers",
-//         client: "Alpha Traders",
-//         pair: "ETH/USDT",
-//         side: "Sell",
-//         quantity: 10,
-//         price: 3400,
-//         status: "completed",
-//         createdAt: "2025-10-18",
-//       },
-//       {
-//         id: "ORD-1003",
-//         type: "customers",
-//         client: "Beta Capital",
-//         pair: "SOL/USDT",
-//         side: "Buy",
-//         quantity: 200,
-//         price: 140,
-//         status: "cancelled",
-//         createdAt: "2025-10-10",
-//       },
-//       {
-//         id: "ORD-1004",
-//         type: "mine",
-//         client: "N/A",
-//         pair: "BTC/USDT",
-//         side: "Sell",
-//         quantity: 0.1,
-//         price: 54500,
-//         status: "executed",
-//         createdAt: "2025-10-19",
-//       },
-//     ],
-//     []
-//   );
-
-//   // Helper: filter and search
-//   const filtered = orders
-//     .filter((o) => o.type === activeTab)
-//     .filter((o) => (statusFilter === "all" ? true : o.status === statusFilter))
-//     .filter((o) => {
-//       if (!query) return true;
-//       const q = query.toLowerCase();
-//       return (
-//         o.id.toLowerCase().includes(q) ||
-//         (o.client || "").toLowerCase().includes(q) ||
-//         o.pair.toLowerCase().includes(q)
-//       );
-//     })
-//     .filter((o) => {
-//       if (!dateFrom && !dateTo) return true;
-//       const d = new Date(o.createdAt);
-//       if (dateFrom && d < new Date(dateFrom)) return false;
-//       if (dateTo && d > new Date(dateTo)) return false;
-//       return true;
-//     });
-
-//   // Simple export to CSV
-//   const exportCSV = () => {
-//     const header = [
-//       "id",
-//       "type",
-//       "client",
-//       "pair",
-//       "side",
-//       "quantity",
-//       "price",
-//       "status",
-//       "createdAt",
-//     ];
-//     const rows = filtered.map((o) => header.map((h) => JSON.stringify(o[h] ?? "")).join(","));
-//     const csv = [header.join(","), ...rows].join("\n");
-//     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-//     const url = URL.createObjectURL(blob);
-//     const a = document.createElement("a");
-//     a.href = url;
-//     a.download = `orders_${activeTab}_${new Date().toISOString()}.csv`;
-//     a.click();
-//     URL.revokeObjectURL(url);
-//   };
-
-//   // Row actions (demo)
-//   const onView = (id) => alert(`View ${id}`);
-//   const onCancel = (id) => {
-//     // In production: call API then refresh
-//     alert(`Request cancel for ${id} (demo)`);
-//   };
-
-//   return (
-//     <div className="p-6 max-w-7xl mx-auto">
-//       <header className="flex items-center justify-between mb-6">
-//         <h1 className="text-2xl font-semibold">Orders Dashboard</h1>
-//         <div className="space-x-2 flex items-center">
-//           <button
-//             onClick={() => setActiveTab("mine")}
-//             className={`px-3 py-1 rounded-md ${activeTab === "mine" ? "bg-blue-600 text-white" : "bg-gray-100"}`}
-//           >
-//             Requested by me
-//           </button>
-//           <button
-//             onClick={() => setActiveTab("customers")}
-//             className={`px-3 py-1 rounded-md ${activeTab === "customers" ? "bg-blue-600 text-white" : "bg-gray-100"}`}
-//           >
-//             Requested by customers
-//           </button>
-//         </div>
-//       </header>
-
-//       <section className="bg-white shadow-sm rounded-md p-4 mb-6">
-//         <div className="flex gap-3 items-center mb-4">
-//           <input
-//             value={query}
-//             onChange={(e) => setQuery(e.target.value)}
-//             placeholder="Search by order id, client, pair..."
-//             className="border rounded p-2 flex-1"
-//           />
-
-//           <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="border rounded p-2">
-//             <option value="all">All statuses</option>
-//             <option value="open">Open</option>
-//             <option value="executed">Executed</option>
-//             <option value="completed">Completed</option>
-//             <option value="cancelled">Cancelled</option>
-//           </select>
-
-//           <div className="flex items-center gap-2">
-//             <label className="text-sm">From</label>
-//             <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="border rounded p-2" />
-//             <label className="text-sm">To</label>
-//             <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="border rounded p-2" />
-//           </div>
-
-//           <button onClick={exportCSV} className="px-3 py-2 bg-green-600 text-white rounded">Export CSV</button>
-//         </div>
-
-//         <div className="overflow-x-auto">
-//           <table className="w-full text-left table-auto border-collapse">
-//             <thead>
-//               <tr className="text-sm text-gray-600">
-//                 <th className="py-2 px-3">Order ID</th>
-                    <th className="py-2 px-3">Firm Name</th>
-//                 <th className="py-2 px-3">Pair</th>
-//                 <th className="py-2 px-3">Side</th>
-//                 <th className="py-2 px-3">Qty</th>
-//                 <th className="py-2 px-3">Price</th>
-//                 <th className="py-2 px-3">Status</th>
-//                 <th className="py-2 px-3">Created</th>
-//                 <th className="py-2 px-3">Actions</th>
-//               </tr>
-//             </thead>
-//             <tbody>
-//               {filtered.length === 0 && (
-//                 <tr>
-//                   <td colSpan={9} className="py-8 text-center text-gray-500">
-//                     No orders found
-//                   </td>
-//                 </tr>
-//               )}
-
-//               {filtered.map((o) => (
-//                 <tr key={o.id} className="border-t">
-//                   <td className="py-3 px-3 font-medium">{o.id}</td>
-//                   <td className="py-3 px-3">{o.client || "—"}</td>
-//                   <td className="py-3 px-3">{o.pair}</td>
-//                   <td className="py-3 px-3">{o.side}</td>
-//                   <td className="py-3 px-3">{o.quantity}</td>
-//                   <td className="py-3 px-3">{o.price}</td>
-//                   <td className="py-3 px-3">
-//                     <span className={`inline-block px-2 py-1 text-xs rounded-full ${getStatusClass(o.status)}`}>{o.status}</span>
-//                   </td>
-//                   <td className="py-3 px-3">{o.createdAt}</td>
-//                   <td className="py-3 px-3 space-x-2">
-//                     <button onClick={() => onView(o.id)} className="px-2 py-1 border rounded text-sm">View</button>
-//                     {o.status === "open" && <button onClick={() => onCancel(o.id)} className="px-2 py-1 border rounded text-sm">Cancel</button>}
-//                   </td>
-//                 </tr>
-//               ))}
-//             </tbody>
-//           </table>
-//         </div>
-//       </section>
-
-//       <section className="grid grid-cols-3 gap-4">
-//         <div className="p-4 bg-white shadow-sm rounded-md">
-//           <h3 className="text-sm text-gray-600">Orders count</h3>
-//           <p className="text-2xl font-semibold mt-2">{filtered.length}</p>
-//         </div>
-//         <div className="p-4 bg-white shadow-sm rounded-md">
-//           <h3 className="text-sm text-gray-600">Total notional</h3>
-//           <p className="text-2xl font-semibold mt-2">{filtered.reduce((s, o) => s + o.quantity * o.price, 0)}</p>
-//         </div>
-//         <div className="p-4 bg-white shadow-sm rounded-md">
-//           <h3 className="text-sm text-gray-600">Open orders</h3>
-//           <p className="text-2xl font-semibold mt-2">{filtered.filter((o) => o.status === "open").length}</p>
-//         </div>
-//       </section>
-//     </div>
-//   );
-// }
-
-// // small helper to map status to tailwind-style classes
-// function getStatusClass(status) {
-//   switch (status) {
-//     case "open":
-//       return "bg-yellow-100 text-yellow-800";
-//     case "executed":
-//     case "completed":
-//       return "bg-green-100 text-green-800";
-//     case "cancelled":
-//       return "bg-red-100 text-red-800";
-//     default:
-//       return "bg-gray-100 text-gray-800";
-//   }
-// }
-
-
-// import React, { useMemo, useState, useEffect } from "react";
-
-// export default function TraderOrdersDashboard() {
-//   const [activeTab, setActiveTab] = useState("mine");
-//   const [query, setQuery] = useState("");
-//   const [statusFilter, setStatusFilter] = useState("all");
-//   const [dateFrom, setDateFrom] = useState("");
-//   const [dateTo, setDateTo] = useState("");
-//   const [darkMode, setDarkMode] = useState(false);
-//   const [sortBy, setSortBy] = useState("createdAt");
-//   const [sortOrder, setSortOrder] = useState("desc");
-
-//   useEffect(() => {
-//     if (darkMode) {
-//       document.documentElement.classList.add("dark");
-//     } else {
-//       document.documentElement.classList.remove("dark");
-//     }
-//   }, [darkMode]);
-
-//   const orders = useMemo(
-//     () => [
-//       {
-//         id: "ORD-1001",
-//         type: "mine",
-//         client: "N/A",
-//         pair: "BTC/USDT",
-//         side: "Buy",
-//         quantity: 0.5,
-//         price: 54000,
-//         status: "open",
-//         createdAt: "2025-10-15",
-//       },
-//       {
-//         id: "ORD-1002",
-//         type: "customers",
-//         client: "Alpha Traders",
-//         pair: "ETH/USDT",
-//         side: "Sell",
-//         quantity: 10,
-//         price: 3400,
-//         status: "completed",
-//         createdAt: "2025-10-18",
-//       },
-//       {
-//         id: "ORD-1003",
-//         type: "customers",
-//         client: "Beta Capital",
-//         pair: "SOL/USDT",
-//         side: "Buy",
-//         quantity: 200,
-//         price: 140,
-//         status: "cancelled",
-//         createdAt: "2025-10-10",
-//       },
-//       {
-//         id: "ORD-1004",
-//         type: "mine",
-//         client: "N/A",
-//         pair: "BTC/USDT",
-//         side: "Sell",
-//         quantity: 0.1,
-//         price: 54500,
-//         status: "executed",
-//         createdAt: "2025-10-19",
-//       },
-//       {
-//         id: "ORD-1005",
-//         type: "mine",
-//         client: "N/A",
-//         pair: "ADA/USDT",
-//         side: "Buy",
-//         quantity: 1000,
-//         price: 0.65,
-//         status: "open",
-//         createdAt: "2025-10-20",
-//       },
-//       {
-//         id: "ORD-1006",
-//         type: "customers",
-//         client: "Gamma Investments",
-//         pair: "BNB/USDT",
-//         side: "Buy",
-//         quantity: 50,
-//         price: 310,
-//         status: "executed",
-//         createdAt: "2025-10-17",
-//       },
-//     ],
-//     []
-//   );
-  
-//   const filtered = orders
-//     .filter((o) => o.type === activeTab)
-//     .filter((o) => (statusFilter === "all" ? true : o.status === statusFilter))
-//     .filter((o) => {
-//       if (!query) return true;
-//       const q = query.toLowerCase();
-//       return (
-//         o.id.toLowerCase().includes(q) ||
-//         (o.client || "").toLowerCase().includes(q) ||
-//         o.pair.toLowerCase().includes(q)
-//       );
-//     })
-//     .filter((o) => {
-//       if (!dateFrom && !dateTo) return true;
-//       const d = new Date(o.createdAt);
-//       if (dateFrom && d < new Date(dateFrom)) return false;
-//       if (dateTo && d > new Date(dateTo)) return false;
-//       return true;
-//     })
-//     .sort((a, b) => {
-//       let aVal = a[sortBy];
-//       let bVal = b[sortBy];
-//       if (sortBy === "createdAt") {
-//         aVal = new Date(aVal).getTime();
-//         bVal = new Date(bVal).getTime();
-//       }
-//       if (sortOrder === "asc") {
-//         return aVal > bVal ? 1 : -1;
-//       }
-//       return aVal < bVal ? 1 : -1;
-//     });
-
-//   const exportCSV = () => {
-//     const header = [
-//       "id",
-//       "type",
-//       "client",
-//       "pair",
-//       "side",
-//       "quantity",
-//       "price",
-//       "status",
-//       "createdAt",
-//     ];
-//     const rows = filtered.map((o) =>
-//       header.map((h) => JSON.stringify(o[h] ?? "")).join(",")
-//     );
-//     const csv = [header.join(","), ...rows].join("\n");
-//     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-//     const url = URL.createObjectURL(blob);
-//     const a = document.createElement("a");
-//     a.href = url;
-//     a.download = `orders_${activeTab}_${new Date().toISOString()}.csv`;
-//     a.click();
-//     URL.revokeObjectURL(url);
-//   };
-
-//   const onView = (id) => alert(`View details for ${id}`);
-//   const onCancel = (id) => {
-//     alert(`Cancel request sent for ${id}`);
-//   };
-
-//   const clearFilters = () => {
-//     setQuery("");
-//     setStatusFilter("all");
-//     setDateFrom("");
-//     setDateTo("");
-//     setSortBy("createdAt");
-//     setSortOrder("desc");
-//   };
-
-//   const stats = {
-//     total: filtered.length,
-//     notional: filtered.reduce((s, o) => s + o.quantity * o.price, 0),
-//     open: filtered.filter((o) => o.status === "open").length,
-//     completed: filtered.filter((o) => o.status === "completed" || o.status === "executed").length,
-//   };
-//   const getStatusClass = (status) => {
-//   switch (status) {
-//     case "open":
-//       return "bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-200";
-//     case "executed":
-//     case "completed":
-//       return "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-200";
-//     case "cancelled":
-//       return "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-200";
-//     default:
-//       return "bg-gray-100 text-gray-700 dark:bg-gray-900 dark:text-gray-300";
-//   }
-// };
-
-//   return (
-//     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 transition-colors duration-300">
-//       <div className="p-4 md:p-8 max-w-7xl mx-auto">
-//         {/* Header */}
-//         <header className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-8">
-//           <div>
-//             <h1 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-1">
-//               Orders Dashboard
-//             </h1>
-//             <p className="text-gray-600 dark:text-gray-400 text-sm">
-//               Manage and track your trading orders
-//             </p>
-//           </div>
-          
-//           <div className="flex items-center gap-3">
-//             <button
-//               onClick={() => setDarkMode(!darkMode)}
-//               className="p-3 rounded-xl bg-white dark:bg-gray-800 shadow-md hover:shadow-lg hover:scale-105 transition-all duration-200 border border-gray-200 dark:border-gray-700"
-//               title={darkMode ? "Switch to light mode" : "Switch to dark mode"}
-//             >
-//               {darkMode ? (
-//                 <svg className="w-5 h-5 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
-//                   <path fillRule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clipRule="evenodd" />
-//                 </svg>
-//               ) : (
-//                 <svg className="w-5 h-5 text-gray-700" fill="currentColor" viewBox="0 0 20 20">
-//                   <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
-//                 </svg>
-//               )}
-//             </button>
-
-//             <div className="flex items-center bg-white dark:bg-gray-800 rounded-xl p-1 shadow-md border border-gray-200 dark:border-gray-700">
-//               <button
-//                 onClick={() => setActiveTab("mine")}
-//                 className={`px-5 py-2.5 rounded-lg font-medium transition-all duration-200 ${
-//                   activeTab === "mine"
-//                     ? "bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-md"
-//                     : "text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-//                 }`}
-//               >
-//                 My Orders
-//               </button>
-//               <button
-//                 onClick={() => setActiveTab("customers")}
-//                 className={`px-5 py-2.5 rounded-lg font-medium transition-all duration-200 ${
-//                   activeTab === "customers"
-//                     ? "bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-md"
-//                     : "text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-//                 }`}
-//               >
-//                 Customer Orders
-//               </button>
-//             </div>
-//           </div>
-//         </header>
-
-//         {/* Stats Cards */}
-//         <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-//           <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-//             <div className="flex items-center justify-between mb-3">
-//               <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">
-//                 Total Orders
-//               </h3>
-//               <div className="p-3 bg-blue-100 dark:bg-blue-900 rounded-xl">
-//                 <svg className="w-6 h-6 text-blue-600 dark:text-blue-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-//                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-//                 </svg>
-//               </div>
-//             </div>
-//             <p className="text-3xl font-bold text-gray-900 dark:text-white">{stats.total}</p>
-//             <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">Active in current view</p>
-//           </div>
-
-//           <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-//             <div className="flex items-center justify-between mb-3">
-//               <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">
-//                 Total Value
-//               </h3>
-//               <div className="p-3 bg-green-100 dark:bg-green-900 rounded-xl">
-//                 <svg className="w-6 h-6 text-green-600 dark:text-green-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-//                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-//                 </svg>
-//               </div>
-//             </div>
-//             <p className="text-3xl font-bold text-gray-900 dark:text-white">
-//               ${stats.notional.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-//             </p>
-//             <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">Sum of all orders</p>
-//           </div>
-
-//           <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-//             <div className="flex items-center justify-between mb-3">
-//               <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">
-//                 Open Orders
-//               </h3>
-//               <div className="p-3 bg-yellow-100 dark:bg-yellow-900 rounded-xl">
-//                 <svg className="w-6 h-6 text-yellow-600 dark:text-yellow-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-//                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-//                 </svg>
-//               </div>
-//             </div>
-//             <p className="text-3xl font-bold text-gray-900 dark:text-white">{stats.open}</p>
-//             <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">Awaiting execution</p>
-//           </div>
-
-//           <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-//             <div className="flex items-center justify-between mb-3">
-//               <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">
-//                 Completed
-//               </h3>
-//               <div className="p-3 bg-purple-100 dark:bg-purple-900 rounded-xl">
-//                 <svg className="w-6 h-6 text-purple-600 dark:text-purple-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-//                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-//                 </svg>
-//               </div>
-//             </div>
-//             <p className="text-3xl font-bold text-gray-900 dark:text-white">{stats.completed}</p>
-//             <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">Successfully executed</p>
-//           </div>
-//         </section>
-
-//         {/* Filters Section */}
-//         <section className="bg-white dark:bg-gray-800 shadow-xl rounded-2xl p-6 mb-6 border border-gray-200 dark:border-gray-700">
-//           <div className="flex flex-wrap gap-3 items-center">
-//             <div className="flex-1 min-w-64">
-//               <div className="relative">
-//                 <svg className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-//                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-//                 </svg>
-//                 <input
-//                   value={query}
-//                   onChange={(e) => setQuery(e.target.value)}
-//                   placeholder="Search by order ID, client, or pair..."
-//                   className="w-full pl-12 pr-4 py-3 border-2 border-gray-200 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-//                 />
-//               </div>
-//             </div>
-
-//             <select
-//               value={statusFilter}
-//               onChange={(e) => setStatusFilter(e.target.value)}
-//               className="border-2 border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all cursor-pointer"
-//             >
-//               <option value="all">All statuses</option>
-//               <option value="open">Open</option>
-//               <option value="executed">Executed</option>
-//               <option value="completed">Completed</option>
-//               <option value="cancelled">Cancelled</option>
-//             </select>
-
-//             <select
-//               value={sortBy}
-//               onChange={(e) => setSortBy(e.target.value)}
-//               className="border-2 border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all cursor-pointer"
-//             >
-//               <option value="createdAt">Sort by Date</option>
-//               <option value="price">Sort by Price</option>
-//               <option value="quantity">Sort by Quantity</option>
-//             </select>
-
-//             <button
-//               onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
-//               className="p-3 border-2 border-gray-200 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 transition-all"
-//               title={sortOrder === "asc" ? "Ascending" : "Descending"}
-//             >
-//               {sortOrder === "asc" ? (
-//                 <svg className="w-5 h-5 text-gray-700 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-//                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-//                 </svg>
-//               ) : (
-//                 <svg className="w-5 h-5 text-gray-700 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-//                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-//                 </svg>
-//               )}
-//             </button>
-
-//             <div className="flex items-center gap-2 bg-gray-50 dark:bg-gray-700 px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-600">
-//               <label className="text-sm font-medium text-gray-600 dark:text-gray-300">From</label>
-//               <input
-//                 type="date"
-//                 value={dateFrom}
-//                 onChange={(e) => setDateFrom(e.target.value)}
-//                 className="border-0 bg-transparent text-gray-900 dark:text-white focus:ring-0 px-2 py-1 text-sm"
-//               />
-//               <label className="text-sm font-medium text-gray-600 dark:text-gray-300">To</label>
-//               <input
-//                 type="date"
-//                 value={dateTo}
-//                 onChange={(e) => setDateTo(e.target.value)}
-//                 className="border-0 bg-transparent text-gray-900 dark:text-white focus:ring-0 px-2 py-1 text-sm"
-//               />
-//             </div>
-
-//             <button
-//               onClick={clearFilters}
-//               className="px-4 py-3 bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 text-gray-700 dark:text-white rounded-xl transition-all flex items-center gap-2 font-medium"
-//             >
-//               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-//                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-//               </svg>
-//               Clear
-//             </button>
-
-//             <button
-//               onClick={exportCSV}
-//               className="px-4 py-3 bg-gradient-to-r from-green-600 to-green-500 hover:from-green-700 hover:to-green-600 text-white rounded-xl shadow-md hover:shadow-lg transition-all flex items-center gap-2 font-medium"
-//             >
-//               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-//                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-//               </svg>
-//               Export CSV
-//             </button>
-//           </div>
-//         </section>
-
-//         {/* Orders Table */}
-//         <section className="bg-white dark:bg-gray-800 shadow-xl rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-700">
-//           <div className="overflow-x-auto">
-//             <table className="w-full">
-//               <thead className="bg-gradient-to-r from-gray-100 to-gray-50 dark:from-gray-700 dark:to-gray-800 border-b-2 border-gray-200 dark:border-gray-600">
-//                 <tr>
-//                   <th className="py-4 px-6 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-//                     Order ID
-//                   </th>
-//                   <th className="py-4 px-6 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-//                     Client
-//                   </th>
-//                   <th className="py-4 px-6 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-//                     Pair
-//                   </th>
-//                   <th className="py-4 px-6 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-//                     Side
-//                   </th>
-//                   <th className="py-4 px-6 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-//                     Quantity
-//                   </th>
-//                   <th className="py-4 px-6 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-//                     Price
-//                   </th>
-//                   <th className="py-4 px-6 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-//                     Status
-//                   </th>
-//                   <th className="py-4 px-6 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-//                     Created
-//                   </th>
-//                   <th className="py-4 px-6 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-//                     Actions
-//                   </th>
-//                 </tr>
-//               </thead>
-//               <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-//                 {filtered.length === 0 && (
-//                   <tr>
-//                     <td colSpan={9} className="py-16 text-center">
-//                       <div className="flex flex-col items-center gap-3">
-//                         <div className="p-4 bg-gray-100 dark:bg-gray-700 rounded-full">
-//                           <svg className="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-//                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-//                           </svg>
-//                         </div>
-//                         <p className="text-gray-500 dark:text-gray-400 text-lg font-medium">No orders found</p>
-//                         <p className="text-gray-400 dark:text-gray-500 text-sm">Try adjusting your filters</p>
-//                       </div>
-//                     </td>
-//                   </tr>
-//                 )}
-
-//                 {filtered.map((o, idx) => (
-//                   <tr
-//                     key={o.id}
-//                     className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-150"
-//                     style={{ animationDelay: `${idx * 50}ms` }}
-//                   >
-//                     <td className="py-4 px-6">
-//                       <span className="font-semibold text-gray-900 dark:text-white">{o.id}</span>
-//                     </td>
-//                     <td className="py-4 px-6 text-gray-700 dark:text-gray-300">{o.client || "—"}</td>
-//                     <td className="py-4 px-6">
-//                       <span className="font-medium text-gray-900 dark:text-white">{o.pair}</span>
-//                     </td>
-//                     <td className="py-4 px-6">
-//                       <span
-//                         className={`inline-flex items-center px-3 py-1 text-xs font-bold rounded-lg ${
-//                           o.side === "Buy"
-//                             ? "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200"
-//                             : "bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-200"
-//                         }`}
-//                       >
-//                         {o.side}
-//                       </span>
-//                     </td>
-//                     <td className="py-4 px-6 text-gray-700 dark:text-gray-300 font-medium">{o.quantity}</td>
-//                     <td className="py-4 px-6 text-gray-700 dark:text-gray-300 font-medium">
-//                       ${o.price.toLocaleString()}
-//                     </td>
-//                     <td className="py-4 px-6">
-//                       <span className={`inline-flex items-center px-3 py-1 text-xs font-bold rounded-full ${getStatusClass(o.status)}`}>
-//                         <span className="w-2 h-2 rounded-full bg-current mr-2"></span>
-//                         {o.status}
-//                       </span>
-//                     </td>
-//                     <td className="py-4 px-6 text-gray-700 dark:text-gray-300 text-sm">{o.createdAt}</td>
-//                     <td className="py-4 px-6">
-//                       <div className="flex items-center gap-2">
-//                         <button
-//                           onClick={() => onView(o.id)}
-//                           className="px-3 py-1.5 text-sm font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900 rounded-lg transition-all"
-//                         >
-//                           View
-//                         </button>
-//                         {o.status === "open" && (
-//                           <button
-//                             onClick={() => onCancel(o.id)}
-//                             className="px-3 py-1.5 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900 rounded-lg transition-all"
-//                           >
-//                             Cancel
-//                           </button>
-//                         )}
-//                       </div>
-//                     </td>
-//                   </tr>
-//                 ))}
-//               </tbody>
-//             </table>
-//           </div>
-//         </section>
-//       </div> 
-//       </div>)}
-
-
-
 import React, { useState, useEffect } from "react";
 import axios from "../utils/axiosConfig";
+import {
+  RefreshCw, Plus, X, Download, Search,
+  FileText, Clock, CheckCircle, TrendingUp,
+  ChevronUp, ChevronDown, Calendar, User,
+  ArrowRightLeft, Hash,
+} from "lucide-react";
 
 export default function TraderOrdersDashboard() {
-  const [activeTab, setActiveTab] = useState("mine");
-  const [query, setQuery] = useState("");
+  const [activeTab, setActiveTab]       = useState("mine");
+  const [query, setQuery]               = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
-  const [darkMode, setDarkMode] = useState(false);
-  const [sortBy, setSortBy] = useState("createdAt");
-  const [sortOrder, setSortOrder] = useState("desc");
-  const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [refreshing, setRefreshing] = useState(false);
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [orderForm, setOrderForm] = useState({
-    type: activeTab,
-    client: "",
-    pair: "",
-    side: "Buy",
-    quantity: "",
-    price: "",
-    status: "open"
+  const [dateFrom, setDateFrom]         = useState("");
+  const [dateTo, setDateTo]             = useState("");
+  const [sortBy, setSortBy]             = useState("createdAt");
+  const [sortOrder, setSortOrder]       = useState("desc");
+  const [orders, setOrders]             = useState([]);
+  const [loading, setLoading]           = useState(true);
+  const [error, setError]               = useState(null);
+  const [refreshing, setRefreshing]     = useState(false);
+  const [showAddForm, setShowAddForm]   = useState(false);
+  const [orderForm, setOrderForm]       = useState({
+    type: "mine", client: "", pair: "", side: "Buy", quantity: "", price: "", status: "open",
   });
 
   useEffect(() => {
-    setOrderForm(prev => ({ ...prev, type: activeTab }));
+    setOrderForm((prev) => ({ ...prev, type: activeTab }));
   }, [activeTab]);
 
-  const API_URL = import.meta.env.VITE_API_URL || '';;
+  const API_URL = import.meta.env.VITE_API_URL || "";
 
-  // ✅ Dark mode effect
-  useEffect(() => {
-    if (darkMode) {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
-  }, [darkMode]);
-
-  // ✅ Fetch orders from backend
   const fetchOrders = async () => {
     try {
       setLoading(true);
-      const response = await axios.get(`${API_URL}/api/dashboard-orders`);
-      const formattedOrders = response.data.map(order => ({
-        ...order,
-        createdAt: new Date(order.createdAt).toISOString().split('T')[0]
-      }));
-      setOrders(formattedOrders);
+      const response = await axios.get(`${API_URL}/api/orders`);
+      setOrders(
+        response.data.map((o) => ({
+          ...o,
+          createdAt: new Date(o.createdAt).toISOString().split("T")[0],
+        }))
+      );
       setError(null);
     } catch (err) {
       console.error("Failed to fetch orders:", err);
@@ -817,26 +49,22 @@ export default function TraderOrdersDashboard() {
     }
   };
 
-  useEffect(() => {
-    fetchOrders();
-  }, []);
+  useEffect(() => { fetchOrders(); }, []);
 
-  // ✅ Refresh orders
   const handleRefresh = async () => {
     setRefreshing(true);
     await fetchOrders();
     setRefreshing(false);
   };
 
-  // ✅ Filter and sort orders
   const filtered = orders
     .filter((o) => o.type === activeTab)
-    .filter((o) => (statusFilter === "all" ? true : o.status === statusFilter))
+    .filter((o) => statusFilter === "all" || o.status === statusFilter)
     .filter((o) => {
       if (!query) return true;
       const q = query.toLowerCase();
       return (
-        o.id.toLowerCase().includes(q) ||
+        (o.id || "").toLowerCase().includes(q) ||
         (o.client || "").toLowerCase().includes(q) ||
         (o.pair || "").toLowerCase().includes(q)
       );
@@ -845,574 +73,520 @@ export default function TraderOrdersDashboard() {
       if (!dateFrom && !dateTo) return true;
       const d = new Date(o.createdAt);
       if (dateFrom && d < new Date(dateFrom)) return false;
-      if (dateTo && d > new Date(dateTo)) return false;
+      if (dateTo   && d > new Date(dateTo))   return false;
       return true;
     })
     .sort((a, b) => {
       let aVal = a[sortBy];
       let bVal = b[sortBy];
-      if (sortBy === "createdAt") {
-        aVal = new Date(aVal).getTime();
-        bVal = new Date(bVal).getTime();
-      }
-      if (sortOrder === "asc") {
-        return aVal > bVal ? 1 : -1;
-      }
-      return aVal < bVal ? 1 : -1;
+      if (sortBy === "createdAt") { aVal = new Date(aVal).getTime(); bVal = new Date(bVal).getTime(); }
+      return sortOrder === "asc" ? (aVal > bVal ? 1 : -1) : (aVal < bVal ? 1 : -1);
     });
 
-  // ✅ Format price in Indian Rupees
-  const formatIndianPrice = (price) => {
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 2,
-    }).format(price);
-  };
+  const formatINR = (price) =>
+    new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(price);
 
-  // ✅ Export CSV
   const exportCSV = () => {
-    const header = [
-      "id",
-      "type",
-      "client",
-      "pair",
-      "side",
-      "quantity",
-      "price",
-      "status",
-      "createdAt",
-    ];
-    const rows = filtered.map((o) =>
-      header.map((h) => JSON.stringify(o[h] ?? "")).join(",")
-    );
-    const csv = [header.join(","), ...rows].join("\n");
+    const header = ["id", "type", "client", "pair", "side", "quantity", "price", "status", "createdAt"];
+    const rows = filtered.map((o) => header.map((h) => JSON.stringify(o[h] ?? "")).join(","));
+    const csv  = [header.join(","), ...rows].join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `orders_${activeTab}_${new Date().toISOString()}.csv`;
-    a.click();
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement("a");
+    a.href = url; a.download = `orders_${activeTab}_${new Date().toISOString().split("T")[0]}.csv`; a.click();
     URL.revokeObjectURL(url);
   };
 
-  // ✅ View order
   const onView = (id) => {
-    const order = orders.find(o => o.id === id);
-    if (order) {
-      alert(`Order Details:\n\nID: ${order.id}\nClient: ${order.client}\nPair: ${order.pair}\nSide: ${order.side}\nQuantity: ${order.quantity}\nPrice: ${formatIndianPrice(order.price)}\nStatus: ${order.status}\nCreated: ${order.createdAt}`);
-    }
+    const o = orders.find((o) => o.id === id);
+    if (o) alert(`Order Details:\n\nID: ${o.id}\nClient: ${o.client}\nPair: ${o.pair}\nSide: ${o.side}\nQty: ${o.quantity}\nPrice: ${formatINR(o.price)}\nStatus: ${o.status}\nCreated: ${o.createdAt}`);
   };
 
-  // ✅ Cancel order
   const onCancel = async (id) => {
-    if (window.confirm(`Are you sure you want to cancel order ${id}?`)) {
-      try {
-        const order = orders.find(o => o.id === id);
-        if (!order) {
-          alert("Order not found");
-          return;
-        }
-
-        await axios.put(`${API_URL}/api/dashboard-orders/${order._id}`, { status: "cancelled" });
-        setOrders(orders.map(o => o.id === id ? { ...o, status: "cancelled" } : o));
-        alert(`Order ${id} cancelled successfully`);
-      } catch (err) {
-        console.error("Failed to cancel order:", err);
-        alert("Failed to cancel order");
-      }
+    if (!window.confirm(`Cancel order ${id}?`)) return;
+    try {
+      const o = orders.find((o) => o.id === id);
+      if (!o) return;
+      await axios.put(`${API_URL}/api/orders/${o._id}`, { status: "cancelled" });
+      setOrders(orders.map((o) => (o.id === id ? { ...o, status: "cancelled" } : o)));
+    } catch (err) {
+      alert("Failed to cancel order");
     }
   };
 
-  // ✅ Add new order
   const handleAddOrder = async () => {
     if (!orderForm.client || !orderForm.pair || !orderForm.quantity || !orderForm.price) {
-      alert("Please fill all required fields!");
-      return;
+      alert("Please fill all required fields!"); return;
     }
-
     try {
-      // Find the highest existing order number and increment it.
-      const maxId = orders.reduce((max, order) => {
-        const orderNum = parseInt(order.id.split('-')[1], 10);
-        return orderNum > max ? orderNum : max;
+      const maxId = orders.reduce((max, o) => {
+        const n = parseInt((o.id || "ORD-0000").split("-")[1], 10);
+        return n > max ? n : max;
       }, 0);
-      const newIdNumber = maxId + 1;
-      const orderId = `ORD-${String(newIdNumber).padStart(4, '0')}`;
-
-
-
       const newOrder = {
-        id: orderId,
+        id: `ORD-${String(maxId + 1).padStart(4, "0")}`,
         ...orderForm,
         quantity: Number(orderForm.quantity),
         price: Number(orderForm.price),
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
       };
-
-      const response = await axios.post(`${API_URL}/api/dashboard-orders`, newOrder);
-      setOrders([...orders, response.data]);
+      const res = await axios.post(`${API_URL}/api/orders`, newOrder);
+      setOrders([...orders, res.data]);
       setShowAddForm(false);
-      setOrderForm({
-        type: activeTab,
-        client: "",
-        pair: "",
-        side: "Buy",
-        quantity: "",
-        price: "",
-        status: "open"
-      });
-      alert("Order added successfully!");
+      setOrderForm({ type: activeTab, client: "", pair: "", side: "Buy", quantity: "", price: "", status: "open" });
     } catch (err) {
-      console.error("Failed to add order:", err);
       alert("Failed to add order");
     }
   };
 
-
-
-  // ✅ Clear filters
   const clearFilters = () => {
-    setQuery("");
-    setStatusFilter("all");
-    setDateFrom("");
-    setDateTo("");
-    setSortBy("createdAt");
-    setSortOrder("desc");
+    setQuery(""); setStatusFilter("all"); setDateFrom(""); setDateTo("");
+    setSortBy("createdAt"); setSortOrder("desc");
   };
 
-  // ✅ Calculate stats
   const stats = {
-    total: filtered.length,
-    notional: filtered.reduce((s, o) => s + (o.quantity * o.price || 0), 0),
-    open: filtered.filter((o) => o.status === "open").length,
+    total:     filtered.length,
+    notional:  filtered.reduce((s, o) => s + (o.quantity * o.price || 0), 0),
+    open:      filtered.filter((o) => o.status === "open").length,
     completed: filtered.filter((o) => o.status === "completed" || o.status === "executed").length,
   };
 
-  // ✅ Status color mapping
-  const getStatusClass = (status) => {
+  const statusMeta = (status) => {
     switch (status) {
-      case "open":
-        return "bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-200";
+      case "open":      return { dot: "bg-amber-400",  badge: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400"   };
       case "executed":
-      case "completed":
-        return "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-200";
-      case "cancelled":
-        return "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-200";
-      default:
-        return "bg-gray-100 text-gray-700 dark:bg-gray-900 dark:text-gray-300";
+      case "completed": return { dot: "bg-green-500",  badge: "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400"   };
+      case "cancelled": return { dot: "bg-red-500",    badge: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400"           };
+      default:          return { dot: "bg-gray-400",   badge: "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400"          };
     }
   };
 
+  const inputCls =
+    "w-full border-2 border-gray-200 dark:border-gray-600 px-3 py-2.5 rounded-xl " +
+    "bg-white dark:bg-gray-700/60 text-gray-900 dark:text-white placeholder-gray-400 " +
+    "dark:placeholder-gray-500 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 " +
+    "outline-none transition-all";
+
+  const hasActiveFilters = query || statusFilter !== "all" || dateFrom || dateTo;
+
+  /* ── Loading ── */
+  if (loading)
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-gray-50 dark:bg-gray-900">
+        <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+        <p className="text-gray-500 dark:text-gray-400 font-medium animate-pulse">Loading orders…</p>
+      </div>
+    );
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 transition-colors duration-300">
-      <div className="p-4 md:p-8 max-w-7xl mx-auto">
-        {/* Header */}
-        <header className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-8">
-          <div>
-            <h1 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-1">
-              Orders Dashboard
-            </h1>
-            <p className="text-gray-600 dark:text-gray-400 text-sm">
-              Manage and track your trading orders
-            </p>
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
+
+      {/* Top accent bar */}
+      <div className="h-1 w-full bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500" />
+
+      <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+
+        {/* ── Header ── */}
+        <header className="flex items-start sm:items-center justify-between gap-3 mb-6">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="p-2 bg-blue-600 rounded-xl shadow-lg shadow-blue-200 dark:shadow-blue-900/40 flex-shrink-0">
+              <ArrowRightLeft className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+            </div>
+            <div className="min-w-0">
+              <h1 className="text-xl sm:text-3xl font-bold text-gray-900 dark:text-white tracking-tight truncate">
+                Orders Dashboard
+              </h1>
+              <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 hidden sm:block">
+                Manage and track your trading orders
+              </p>
+            </div>
           </div>
-          
-          <div className="flex items-center gap-3">
+
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {/* Refresh */}
             <button
               onClick={handleRefresh}
               disabled={refreshing}
-              className="p-3 rounded-xl bg-white dark:bg-gray-800 shadow-md hover:shadow-lg hover:scale-105 transition-all duration-200 border border-gray-200 dark:border-gray-700 disabled:opacity-50"
-              title="Refresh orders"
+              className="p-2.5 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md transition-all disabled:opacity-50"
+              title="Refresh"
             >
-              <svg className={`w-5 h-5 text-gray-700 dark:text-gray-300 ${refreshing ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
+              <RefreshCw className={`w-4 h-4 text-gray-600 dark:text-gray-300 ${refreshing ? "animate-spin" : ""}`} />
             </button>
 
-            {/* <button
-              onClick={() => setDarkMode(!darkMode)}
-              className="p-3 rounded-xl bg-white dark:bg-gray-800 shadow-md hover:shadow-lg hover:scale-105 transition-all duration-200 border border-gray-200 dark:border-gray-700"
-              title={darkMode ? "Switch to light mode" : "Switch to dark mode"}
-            >
-              {darkMode ? (
-                <svg className="w-5 h-5 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clipRule="evenodd" />
-                </svg>
-              ) : (
-                <svg className="w-5 h-5 text-gray-700" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
-                </svg>
-              )}
-            </button> */}
-
-            <div className="flex items-center bg-white dark:bg-gray-800 rounded-xl p-1 shadow-md border border-gray-200 dark:border-gray-700">
-              <button
-                onClick={() => setActiveTab("mine")}
-                className={`px-5 py-2.5 rounded-lg font-medium transition-all duration-200 ${
-                  activeTab === "mine"
-                    ? "bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-md"
-                    : "text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                }`}
-              >
-                My Orders
-              </button>
-              <button
-                onClick={() => setActiveTab("customers")}
-                className={`px-5 py-2.5 rounded-lg font-medium transition-all duration-200 ${
-                  activeTab === "customers"
-                    ? "bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-md"
-                    : "text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                }`}
-              >
-                Customer Orders
-              </button>
+            {/* Tab toggle */}
+            <div className="flex bg-white dark:bg-gray-800 rounded-xl p-1 border border-gray-200 dark:border-gray-700 shadow-sm">
+              {[
+                { key: "mine",      label: "My Orders"  },
+                { key: "customers", label: "Customers"  },
+              ].map(({ key, label }) => (
+                <button
+                  key={key}
+                  onClick={() => setActiveTab(key)}
+                  className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all ${
+                    activeTab === key
+                      ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md"
+                      : "text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
             </div>
+
+            {/* Add order */}
+            <button
+              onClick={() => setShowAddForm(!showAddForm)}
+              className="flex items-center gap-1.5 px-3 sm:px-4 py-2 sm:py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 active:scale-95 text-white rounded-xl shadow-md shadow-blue-200 dark:shadow-blue-900/40 font-semibold text-xs sm:text-sm transition-all whitespace-nowrap"
+            >
+              {showAddForm ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+              <span className="hidden sm:inline">{showAddForm ? "Close" : "Add Order"}</span>
+            </button>
           </div>
         </header>
 
-        {/* Loading State */}
-        {loading && (
-          <div className="flex items-center justify-center py-12">
-            <div className="text-center">
-              <div className="inline-block">
-                <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
-              </div>
-              <p className="text-gray-600 dark:text-gray-400 mt-4">Loading orders...</p>
-            </div>
+        {/* ── Error ── */}
+        {error && (
+          <div className="flex items-center justify-between gap-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 border-l-4 border-l-red-500 rounded-xl p-3 sm:p-4 mb-6 text-sm text-red-700 dark:text-red-400">
+            <span>{error}</span>
+            <button onClick={handleRefresh} className="text-red-600 hover:underline text-xs font-semibold flex-shrink-0">Retry</button>
           </div>
         )}
 
-        {/* Error State */}
-        {error && (
-          <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-xl">
-            <div className="flex items-center justify-between">
-              <p className="text-red-700 dark:text-red-300 font-medium">{error}</p>
-              <button onClick={handleRefresh} className="text-red-600 dark:text-red-400 hover:underline text-sm">
-                Retry
+        {/* ── Stats Cards ── */}
+        <section className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
+          {[
+            { label: "Total Orders", value: stats.total,              sub: "Current view",        icon: <FileText className="w-5 h-5 text-blue-600 dark:text-blue-400" />,       bg: "bg-blue-50 dark:bg-blue-900/20"   },
+            { label: "Total Value",  value: formatINR(stats.notional),sub: "Sum of all orders",   icon: <span className="text-base font-bold text-green-600 dark:text-green-400">₹</span>, bg: "bg-green-50 dark:bg-green-900/20" },
+            { label: "Open Orders",  value: stats.open,               sub: "Awaiting execution",  icon: <Clock className="w-5 h-5 text-amber-500" />,                             bg: "bg-amber-50 dark:bg-amber-900/20" },
+            { label: "Completed",    value: stats.completed,          sub: "Successfully executed",icon: <CheckCircle className="w-5 h-5 text-indigo-500" />,                    bg: "bg-indigo-50 dark:bg-indigo-900/20"},
+          ].map(({ label, value, sub, icon, bg }) => (
+            <div key={label} className="bg-white dark:bg-gray-800 rounded-2xl p-4 sm:p-5 border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md transition-all duration-200 hover:-translate-y-0.5">
+              <div className="flex items-start justify-between gap-2 mb-3">
+                <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider leading-tight">{label}</p>
+                <div className={`p-2 rounded-lg ${bg} flex-shrink-0 flex items-center justify-center min-w-[32px] min-h-[32px]`}>{icon}</div>
+              </div>
+              <p className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white truncate">{value}</p>
+              <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">{sub}</p>
+            </div>
+          ))}
+        </section>
+
+        {/* ── Add Order Form ── */}
+        {showAddForm && (
+          <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden mb-6">
+            <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-5 py-4 flex items-center justify-between">
+              <h2 className="text-base font-bold text-white">
+                Add New {activeTab === "mine" ? "My Order" : "Customer Order"}
+              </h2>
+              <button onClick={() => setShowAddForm(false)} className="p-1.5 hover:bg-white/20 rounded-lg transition-colors">
+                <X className="w-5 h-5 text-white" />
               </button>
             </div>
+            <div className="p-4 sm:p-5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+                <div>
+                  <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5">
+                    <User className="w-3.5 h-3.5" /> {activeTab === "mine" ? "Firm Name" : "Client"} *
+                  </label>
+                  <input placeholder={activeTab === "mine" ? "Firm name…" : "Client name…"} value={orderForm.client}
+                    onChange={(e) => setOrderForm({ ...orderForm, client: e.target.value })} className={inputCls} />
+                </div>
+                <div>
+                  <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5">
+                    <ArrowRightLeft className="w-3.5 h-3.5" /> Trading Pair *
+                  </label>
+                  <input placeholder="e.g. BTC/INR" value={orderForm.pair}
+                    onChange={(e) => setOrderForm({ ...orderForm, pair: e.target.value })} className={inputCls} />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5 block">Side</label>
+                  <select value={orderForm.side} onChange={(e) => setOrderForm({ ...orderForm, side: e.target.value })} className={inputCls}>
+                    <option value="Buy">Buy</option>
+                    <option value="Sell">Sell</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5 block">Quantity *</label>
+                  <input type="number" placeholder="0" min="0" value={orderForm.quantity}
+                    onChange={(e) => setOrderForm({ ...orderForm, quantity: e.target.value })} className={inputCls} />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5 block">Price (₹) *</label>
+                  <input type="number" placeholder="0" min="0" value={orderForm.price}
+                    onChange={(e) => setOrderForm({ ...orderForm, price: e.target.value })} className={inputCls} />
+                </div>
+                <div className="flex flex-col justify-end">
+                  <div className="flex flex-col-reverse sm:flex-row gap-3">
+                    <button onClick={() => setShowAddForm(false)}
+                      className="w-full px-4 py-2.5 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-xl font-semibold text-sm transition-all active:scale-95">
+                      Cancel
+                    </button>
+                    <button onClick={handleAddOrder}
+                      className="w-full px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl font-semibold text-sm transition-all active:scale-95 shadow-md">
+                      Add Order
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 
-        {/* Stats Cards */}
-        {!loading && (
-          <>
-            <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-              <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">
-                    Total Orders
-                  </h3>
-                  <div className="p-3 bg-blue-100 dark:bg-blue-900 rounded-xl">
-                    <svg className="w-6 h-6 text-blue-600 dark:text-blue-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                  </div>
-                </div>
-                <p className="text-3xl font-bold text-gray-900 dark:text-white">{stats.total}</p>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">Active in current view</p>
+        {/* ── Filters ── */}
+        <section className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm p-3 sm:p-4 mb-4 sm:mb-6">
+          <div className="flex flex-col gap-3">
+            {/* Row 1: search + status + sort */}
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="flex-1 relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                <input
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Search by order ID, client, or pair…"
+                  className="w-full pl-9 pr-9 py-2.5 border-2 border-gray-200 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-700/60 text-gray-900 dark:text-white placeholder-gray-400 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                />
+                {query && (
+                  <button onClick={() => setQuery("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
               </div>
 
-                            <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">
-                    Total Value
-                  </h3>
-                  <div className="p-3 bg-green-100 dark:bg-green-900 rounded-xl flex items-center justify-center w-12 h-12">
-                    <span className="text-2xl font-bold text-green-600 dark:text-green-300">₹</span>
-                  </div>
-                </div>
-                <p className="text-3xl font-bold text-gray-900 dark:text-white">
-                  {formatIndianPrice(stats.notional)}
-                </p>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">Sum of all orders</p>
-              </div>
-
-              <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">
-                    Open Orders
-                  </h3>
-                  <div className="p-3 bg-yellow-100 dark:bg-yellow-900 rounded-xl">
-                    <svg className="w-6 h-6 text-yellow-600 dark:text-yellow-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  </div>
-                </div>
-                <p className="text-3xl font-bold text-gray-900 dark:text-white">{stats.open}</p>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">Awaiting execution</p>
-              </div>
-
-              <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">
-                    Completed
-                  </h3>
-                  <div className="p-3 bg-purple-100 dark:bg-purple-900 rounded-xl">
-                    <svg className="w-6 h-6 text-purple-600 dark:text-purple-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  </div>
-                </div>
-                <p className="text-3xl font-bold text-gray-900 dark:text-white">{stats.completed}</p>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">Successfully executed</p>
-              </div>
-            </section>
-
-            {/* Filters Section */}
-            <section className="bg-white dark:bg-gray-800 shadow-xl rounded-2xl p-6 mb-6 border border-gray-200 dark:border-gray-700">
-              <div className="flex flex-wrap gap-3 items-center">
-                <div className="flex-1 min-w-64">
-                  <div className="relative">
-                    <svg className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                    </svg>
-                    <input
-                      value={query}
-                      onChange={(e) => setQuery(e.target.value)}
-                      placeholder="Search by order ID, client, or pair..."
-                      className="w-full pl-12 pr-4 py-3 border-2 border-gray-200 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                    />
-                  </div>
-                </div>
-
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="border-2 border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all cursor-pointer"
-                >
-                  <option value="all">All statuses</option>
+              <div className="flex gap-2 flex-wrap sm:flex-nowrap">
+                <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}
+                  className="flex-1 sm:flex-none border-2 border-gray-200 dark:border-gray-600 rounded-xl px-3 py-2.5 bg-gray-50 dark:bg-gray-700/60 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all cursor-pointer min-w-[120px]">
+                  <option value="all">All Status</option>
                   <option value="open">Open</option>
                   <option value="executed">Executed</option>
                   <option value="completed">Completed</option>
                   <option value="cancelled">Cancelled</option>
                 </select>
 
-                <select
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value)}
-                  className="border-2 border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all cursor-pointer"
-                >
-                  <option value="createdAt">Sort by Date</option>
-                  <option value="price">Sort by Price</option>
-                  <option value="quantity">Sort by Quantity</option>
+                <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}
+                  className="flex-1 sm:flex-none border-2 border-gray-200 dark:border-gray-600 rounded-xl px-3 py-2.5 bg-gray-50 dark:bg-gray-700/60 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all cursor-pointer min-w-[120px]">
+                  <option value="createdAt">Sort: Date</option>
+                  <option value="price">Sort: Price</option>
+                  <option value="quantity">Sort: Qty</option>
                 </select>
 
-                <button
-                  onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
-                  className="p-3 border-2 border-gray-200 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 transition-all"
-                  title={sortOrder === "asc" ? "Ascending" : "Descending"}
-                >
-                  {sortOrder === "asc" ? (
-                    <svg className="w-5 h-5 text-gray-700 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-                    </svg>
-                  ) : (
-                    <svg className="w-5 h-5 text-gray-700 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                  )}
-                </button>
-
-                <div className="flex items-center gap-2 bg-gray-50 dark:bg-gray-700 px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-600">
-                  <label className="text-sm font-medium text-gray-600 dark:text-gray-300">From</label>
-                  <input
-                    type="date"
-                    value={dateFrom}
-                    onChange={(e) => setDateFrom(e.target.value)}
-                    className="border-0 bg-transparent text-gray-900 dark:text-white focus:ring-0 px-2 py-1 text-sm"
-                  />
-                  <label className="text-sm font-medium text-gray-600 dark:text-gray-300">To</label>
-                  <input
-                    type="date"
-                    value={dateTo}
-                    onChange={(e) => setDateTo(e.target.value)}
-                    className="border-0 bg-transparent text-gray-900 dark:text-white focus:ring-0 px-2 py-1 text-sm"
-                  />
-                </div>
-
-                <button
-                  onClick={clearFilters}
-                  className="px-4 py-3 bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 text-gray-700 dark:text-white rounded-xl transition-all flex items-center gap-2 font-medium"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                  Clear
-                </button>
-
-                <button
-                  onClick={() => setShowAddForm(!showAddForm)}
-                  className="px-4 py-3 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white rounded-xl shadow-md hover:shadow-lg transition-all flex items-center gap-2 font-medium"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                  </svg>
-                  {showAddForm ? 'Hide Form' : 'Add Order'}
-                </button>
-
-                <button
-                  onClick={exportCSV}
-                  className="px-4 py-3 bg-gradient-to-r from-green-600 to-green-500 hover:from-green-700 hover:to-green-600 text-white rounded-xl shadow-md hover:shadow-lg transition-all flex items-center gap-2 font-medium"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                  Export CSV
+                <button onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
+                  className="border-2 border-gray-200 dark:border-gray-600 rounded-xl px-3 py-2.5 bg-gray-50 dark:bg-gray-700/60 hover:bg-gray-100 dark:hover:bg-gray-600 transition-all flex items-center gap-1 text-sm font-semibold text-gray-700 dark:text-gray-300"
+                  title={sortOrder === "asc" ? "Ascending" : "Descending"}>
+                  {sortOrder === "asc" ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                 </button>
               </div>
-            </section>
+            </div>
 
-            {/* Add Order Form */}
-            {showAddForm && (
-              <section className="bg-white dark:bg-gray-800 shadow-xl rounded-2xl p-6 mb-6 border border-gray-200 dark:border-gray-700">
-                <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4 rounded-t-2xl -m-6 mb-6">
-                  <h2 className="text-2xl font-bold text-white">
-                    Add New {activeTab === "mine" ? "My Order" : "Customer Order"}
-                  </h2>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  <input
-                    placeholder={activeTab === "mine" ? "Firm Name *" : "Client *"}
-                    name="client"
-                    value={orderForm.client}
-                    onChange={(e) => setOrderForm({ ...orderForm, client: e.target.value })}
-                    className="w-full border-2 border-gray-200 p-3 rounded-xl dark:bg-gray-700 dark:text-white dark:border-gray-600 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    required
-                  />
-                  <input
-                    placeholder="Trading Pair *"
-                    name="pair"
-                    value={orderForm.pair}
-                    onChange={(e) => setOrderForm({ ...orderForm, pair: e.target.value })}
-                    className="w-full border-2 border-gray-200 p-3 rounded-xl dark:bg-gray-700 dark:text-white dark:border-gray-600 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    required
-                  />
-                  <select
-                    name="side"
-                    value={orderForm.side}
-                    onChange={(e) => setOrderForm({ ...orderForm, side: e.target.value })}
-                    className="w-full border-2 border-gray-200 p-3 rounded-xl dark:bg-gray-700 dark:text-white dark:border-gray-600 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value="Buy">Buy</option>
-                    <option value="Sell">Sell</option>
-                  </select>
-                  <input
-                    type="number"
-                    placeholder="Quantity *"
-                    name="quantity"
-                    value={orderForm.quantity}
-                    onChange={(e) => setOrderForm({ ...orderForm, quantity: e.target.value })}
-                    className="w-full border-2 border-gray-200 p-3 rounded-xl dark:bg-gray-700 dark:text-white dark:border-gray-600 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    required
-                  />
-                  <input
-                    type="number"
-                    placeholder="Price (₹) *"
-                    name="price"
-                    value={orderForm.price}
-                    onChange={(e) => setOrderForm({ ...orderForm, price: e.target.value })}
-                    className="w-full border-2 border-gray-200 p-3 rounded-xl dark:bg-gray-700 dark:text-white dark:border-gray-600 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    required
-                  />
-                  <div className="flex gap-3">
-                    <button
-                      onClick={() => setShowAddForm(false)}
-                      className="flex-1 px-4 py-3 bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 text-gray-700 dark:text-white rounded-xl transition-all font-medium"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      onClick={handleAddOrder}
-                      className="flex-1 px-4 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl transition-all font-medium"
-                    >
-                      Add Order
-                    </button>
-                  </div>
-                </div>
-              </section>
-            )}
-
-            {/* Orders Table */}
-            <section className="bg-white dark:bg-gray-800 shadow-xl rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-700">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-gradient-to-r from-gray-100 to-gray-50 dark:from-gray-700 dark:to-gray-800 border-b-2 border-gray-200 dark:border-gray-600">
-                    <tr>
-                      <th className="py-4 px-6 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Order ID</th>
-                      <th className="py-4 px-6 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                        {activeTab === "mine" ? "Firm Name" : "Client"}
-                      </th>
-                      <th className="py-4 px-6 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Pair</th>
-                      <th className="py-4 px-6 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Side</th>
-                      <th className="py-4 px-6 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Quantity</th>
-                      <th className="py-4 px-6 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Price (₹)</th>
-                      <th className="py-4 px-6 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Status</th>
-                      <th className="py-4 px-6 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Created</th>
-                      <th className="py-4 px-6 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                    {filtered.length === 0 && (
-                      <tr>
-                        <td colSpan={9} className="py-16 text-center">
-                          <div className="flex flex-col items-center gap-3">
-                            <div className="p-4 bg-gray-100 dark:bg-gray-700 rounded-full">
-                              <svg className="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                              </svg>
-                            </div>
-                            <p className="text-gray-500 dark:text-gray-400 text-lg font-medium">No orders found</p>
-                            <p className="text-gray-400 dark:text-gray-500 text-sm">Try adjusting your filters</p>
-                          </div>
-                        </td>
-                      </tr>
-                    )}
-
-                    {filtered.map((o) => (
-                      <tr key={o.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-150">
-                        <td className="py-4 px-6 font-semibold text-gray-900 dark:text-white">{o.id}</td>
-                        <td className="py-4 px-6 text-gray-700 dark:text-gray-300">{o.client || "—"}</td>
-                        <td className="py-4 px-6 font-medium text-gray-900 dark:text-white">{o.pair}</td>
-                        <td className="py-4 px-6">
-                          <span className={`inline-flex items-center px-3 py-1 text-xs font-bold rounded-lg ${o.side === "Buy" ? "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200" : "bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-200"}`}>
-                            {o.side}
-                          </span>
-                        </td>
-                        <td className="py-4 px-6 text-gray-700 dark:text-gray-300 font-medium">{o.quantity.toLocaleString('en-IN')}</td>
-                        <td className="py-4 px-6 text-gray-700 dark:text-gray-300 font-medium">{formatIndianPrice(o.price)}</td>
-                        <td className="py-4 px-6">
-                          <span className={`inline-flex items-center px-3 py-1 text-xs font-bold rounded-full ${getStatusClass(o.status)}`}>
-                            <span className="w-2 h-2 rounded-full bg-current mr-2"></span>
-                            {o.status}
-                          </span>
-                        </td>
-                        <td className="py-4 px-6 text-gray-700 dark:text-gray-300 text-sm">{o.createdAt}</td>
-                        <td className="py-4 px-6">
-                          <div className="flex items-center gap-2">
-                            <button onClick={() => onView(o.id)} className="px-3 py-1.5 text-sm font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900 rounded-lg transition-all">
-                              View
-                            </button>
-                            {o.status === "open" && (
-                              <button onClick={() => onCancel(o.id)} className="px-3 py-1.5 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900 rounded-lg transition-all">
-                                Cancel
-                              </button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+            {/* Row 2: date range + export + clear */}
+            <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
+              <div className="flex items-center gap-2 bg-gray-50 dark:bg-gray-700/60 border-2 border-gray-200 dark:border-gray-600 rounded-xl px-3 py-2.5 flex-1">
+                <Calendar className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                <label className="text-xs font-semibold text-gray-500 dark:text-gray-400">From</label>
+                <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)}
+                  className="flex-1 bg-transparent text-gray-900 dark:text-white text-sm outline-none min-w-0" />
+                <span className="text-gray-300 dark:text-gray-600">|</span>
+                <label className="text-xs font-semibold text-gray-500 dark:text-gray-400">To</label>
+                <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)}
+                  className="flex-1 bg-transparent text-gray-900 dark:text-white text-sm outline-none min-w-0" />
               </div>
-            </section>
-          </>
+
+              <div className="flex gap-2">
+                <button onClick={exportCSV}
+                  className="flex items-center gap-1.5 px-3 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-xl text-xs font-semibold shadow-sm transition-all flex-shrink-0">
+                  <Download className="w-4 h-4 text-green-600" />
+                  <span className="hidden sm:inline">Export</span>
+                </button>
+                {hasActiveFilters && (
+                  <button onClick={clearFilters}
+                    className="flex items-center gap-1.5 px-3 py-2.5 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300 rounded-xl text-xs font-semibold transition-all flex-shrink-0">
+                    <X className="w-3.5 h-3.5" /> Clear
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Filter result count */}
+          {hasActiveFilters && (
+            <div className="mt-2.5 pt-2.5 border-t border-gray-100 dark:border-gray-700">
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                <span className="font-semibold text-blue-600">{filtered.length}</span> of {orders.filter(o => o.type === activeTab).length} orders shown
+              </p>
+            </div>
+          )}
+        </section>
+
+        {/* ── Empty state ── */}
+        {filtered.length === 0 && (
+          <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm py-16 flex flex-col items-center gap-3">
+            <div className="p-4 bg-gray-100 dark:bg-gray-700 rounded-2xl">
+              <FileText className="w-10 h-10 text-gray-300 dark:text-gray-500" />
+            </div>
+            <p className="text-gray-600 dark:text-gray-400 font-semibold">No orders found</p>
+            <p className="text-gray-400 dark:text-gray-500 text-sm">Try adjusting your filters</p>
+          </div>
         )}
 
+        {/* ═══════════════════════════════════════════════
+            MOBILE & TABLET (<lg) — card list
+        ═══════════════════════════════════════════════ */}
+        {filtered.length > 0 && (
+          <div className="lg:hidden flex flex-col gap-3">
+            {filtered.map((o) => {
+              const sm = statusMeta(o.status);
+              return (
+                <div key={o.id} className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+                  <div className="h-1 bg-gradient-to-r from-blue-500 to-indigo-500" />
+                  <div className="p-4">
+                    {/* Top: ID + side badge + status + actions */}
+                    <div className="flex items-start justify-between gap-2 mb-3">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-bold text-gray-900 dark:text-white text-sm">{o.id}</span>
+                          <span className={`inline-flex items-center px-2 py-0.5 text-xs font-bold rounded-lg ${o.side === "Buy" ? "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400" : "bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400"}`}>
+                            {o.side}
+                          </span>
+                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs font-bold rounded-full ${sm.badge}`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${sm.dot}`} />{o.status}
+                          </span>
+                        </div>
+                        {o.client && (
+                          <p className="text-xs text-gray-400 dark:text-gray-500 mt-1 flex items-center gap-1">
+                            <User className="w-3 h-3" />{o.client}
+                          </p>
+                        )}
+                      </div>
+                      {/* Actions */}
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        <button onClick={() => onView(o.id)}
+                          className="p-2 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-all" title="View">
+                          <FileText className="w-4 h-4" />
+                        </button>
+                        {o.status === "open" && (
+                          <button onClick={() => onCancel(o.id)}
+                            className="p-2 text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-all" title="Cancel">
+                            <X className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
 
+                    {/* Detail grid */}
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
+                      <div>
+                        <p className="text-gray-400 dark:text-gray-500 mb-0.5 flex items-center gap-1"><ArrowRightLeft className="w-3 h-3" />Pair</p>
+                        <p className="font-semibold text-gray-800 dark:text-gray-200">{o.pair}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-400 dark:text-gray-500 mb-0.5">Quantity</p>
+                        <p className="font-semibold text-gray-800 dark:text-gray-200">{o.quantity?.toLocaleString("en-IN")}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-400 dark:text-gray-500 mb-0.5">Price</p>
+                        <p className="font-bold text-green-600 dark:text-green-400">{formatINR(o.price)}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-400 dark:text-gray-500 mb-0.5 flex items-center gap-1"><Calendar className="w-3 h-3" />Created</p>
+                        <p className="font-semibold text-gray-700 dark:text-gray-300">{o.createdAt}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+            <p className="text-xs text-center text-gray-400 dark:text-gray-500 py-2">
+              {filtered.length} order{filtered.length !== 1 ? "s" : ""}
+            </p>
+          </div>
+        )}
+
+        {/* ═══════════════════════════════════════════════
+            DESKTOP (lg+) — full table
+        ═══════════════════════════════════════════════ */}
+        {filtered.length > 0 && (
+          <div className="hidden lg:block bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+            <table className="w-full">
+              <thead>
+                <tr className="bg-gray-50 dark:bg-gray-700/50 border-b-2 border-gray-100 dark:border-gray-700">
+                  {[
+                    "Order ID",
+                    activeTab === "mine" ? "Firm Name" : "Client",
+                    "Pair", "Side", "Quantity", "Price (₹)", "Status", "Created", "Actions"
+                  ].map((h) => (
+                    <th key={h} className="py-3.5 px-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 dark:divide-gray-700/60">
+                {filtered.map((o) => {
+                  const sm = statusMeta(o.status);
+                  return (
+                    <tr key={o.id} className="hover:bg-blue-50/40 dark:hover:bg-blue-900/10 transition-colors group">
+                      <td className="py-3.5 px-4">
+                        <span className="font-bold text-gray-900 dark:text-white text-sm">{o.id}</span>
+                      </td>
+                      <td className="py-3.5 px-4 text-sm text-gray-600 dark:text-gray-300 max-w-[140px] truncate">
+                        {o.client || "—"}
+                      </td>
+                      <td className="py-3.5 px-4">
+                        <span className="font-semibold text-gray-900 dark:text-white text-sm">{o.pair}</span>
+                      </td>
+                      <td className="py-3.5 px-4">
+                        <span className={`inline-flex items-center px-2.5 py-1 text-xs font-bold rounded-lg ${
+                          o.side === "Buy"
+                            ? "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400"
+                            : "bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400"
+                        }`}>
+                          {o.side}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-4 text-sm font-semibold text-gray-700 dark:text-gray-300">
+                        {o.quantity?.toLocaleString("en-IN")}
+                      </td>
+                      <td className="py-3.5 px-4">
+                        <span className="text-sm font-bold text-green-700 dark:text-green-400">
+                          {formatINR(o.price)}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-4">
+                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold rounded-full ${sm.badge}`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${sm.dot}`} />
+                          {o.status}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-4">
+                        <span className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1.5 whitespace-nowrap">
+                          <Calendar className="w-3.5 h-3.5" />{o.createdAt}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-4">
+                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button onClick={() => onView(o.id)}
+                            className="px-2.5 py-1.5 text-xs font-semibold text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/40 rounded-lg transition-all">
+                            View
+                          </button>
+                          {o.status === "open" && (
+                            <button onClick={() => onCancel(o.id)}
+                              className="px-2.5 py-1.5 text-xs font-semibold text-red-500 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 rounded-lg transition-all">
+                              Cancel
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            <div className="px-4 py-3 border-t border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-700/20">
+              <p className="text-xs text-gray-400 dark:text-gray-500">
+                {filtered.length} order{filtered.length !== 1 ? "s" : ""} shown
+              </p>
+            </div>
+          </div>
+        )}
 
       </div>
     </div>
