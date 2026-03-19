@@ -1,7 +1,7 @@
 
 import { ArrowDownRight, ArrowRight, ArrowUpRight, Eye, ReceiptIndianRupee, ShoppingCart, Users } from "lucide-react";
 import React, { useState, useEffect } from "react";
-import { getDashboardAnalytics } from "../../api/dashboard.api";
+import { getDashboardAnalytics } from "../../api/dashboard.api.js";
 
 const StatsGrid = () => {
   // replaced totalOrders with customerOrders

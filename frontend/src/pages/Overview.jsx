@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { getDashboardAnalytics } from "../api/dashboard.api";
+import { getDashboardAnalytics } from "../api/dashboard.api.js";
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,

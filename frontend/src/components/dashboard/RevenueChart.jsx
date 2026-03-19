@@ -9,7 +9,7 @@ import {
   ResponsiveContainer,
   Tooltip
 } from "recharts";
-import { getDashboardAnalytics } from "../../api/dashboard.api";
+import { getDashboardAnalytics } from "../../api/dashboard.api.js";
 
 const RevenueChart = () => {
   const [revenueData, setRevenueData] = useState([]);

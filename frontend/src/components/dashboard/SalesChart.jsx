@@ -1,7 +1,7 @@
 import React from 'react';
 import { useEffect, useState } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
-import { getDashboardAnalytics } from "../../api/dashboard.api";
+import { getDashboardAnalytics } from "../../api/dashboard.api.js";
 
 const SalesChart = () => {
   const [data, setData] = useState([]);
