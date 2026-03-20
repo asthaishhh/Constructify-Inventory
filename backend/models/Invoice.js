@@ -15,6 +15,12 @@ const invoiceSchema = new mongoose.Schema(
     required: true
   },
 
+  sourceOrderId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Order",
+    default: null,
+  },
+
   status: {
     type: String,
     enum: ["pending", "paid", "completed"],

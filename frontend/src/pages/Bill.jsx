@@ -4,6 +4,7 @@ import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 // import logoImage from "../assets/logo.png";
 import { motion, AnimatePresence } from "framer-motion";
+import { useLocation } from "react-router-dom";
 import {
   Plus,
   Download,
@@ -169,11 +170,13 @@ function StatCard({ icon: Icon, label, value, color }) {
 
 // ── Main Component ─────────────────────────────────────────────
 export default function InvoiceGenerator() {
+  const location = useLocation();
   const [invoices, setInvoices] = useState([]);
   const [materials, setMaterials] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [form, setForm] = useState({
     id: null,
+    sourceOrderId: "",
     client: "",
     status: "pending",
     materials: [{ name: "", quantity: 1, rate: 0 }],
@@ -281,6 +284,47 @@ export default function InvoiceGenerator() {
   useEffect(() => {
     fetchMaterials();
   }, []);
+
+  // One-time prefill when coming from Customers Orders -> Create Invoice
+  useEffect(() => {
+    const fromState = location?.state?.invoicePrefill;
+    const fromStorageRaw = localStorage.getItem("invoicePrefillFromOrder");
+    const fromStorage = fromStorageRaw ? JSON.parse(fromStorageRaw) : null;
+    const prefill = fromState || fromStorage;
+
+    if (!prefill || !showForm) {
+      if (!prefill) return;
+    }
+
+    if (!prefill || customers.length === 0 || materials.length === 0) return;
+
+    const selectedCustomer =
+      customers.find((c) => String(c._id) === String(prefill.customerId)) ||
+      customers.find((c) => String(c.name || "").toLowerCase() === String(prefill.client || "").toLowerCase());
+
+    const selectedMaterial =
+      materials.find((m) => String(m.name || "").toLowerCase() === String(prefill.materialName || "").toLowerCase());
+
+    setForm((prev) => ({
+      ...prev,
+      id: null,
+      sourceOrderId: prefill.sourceOrderId || "",
+      customerId: selectedCustomer?._id || "",
+      client: selectedCustomer?.name || prefill.client || "",
+      status: prefill.status || "pending",
+      materials: [
+        {
+          name: selectedMaterial?.name || prefill.materialName || "",
+          quantity: Number(prefill.quantity || 1),
+          rate: prefill.rate ?? "",
+        },
+      ],
+    }));
+    setShowForm(true);
+
+    localStorage.removeItem("invoicePrefillFromOrder");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location?.state, customers, materials]);
 
   // If materials load after invoices, re-normalize invoice material names
   useEffect(() => {
@@ -447,6 +491,7 @@ const fetchInvoices = async () => {
   const resetForm = () => {
     setForm({
       id: null,
+      sourceOrderId: "",
       client: "",
       customerId: "",
       status: "pending",

@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import Invoice from "../models/Invoice.js";
 import Material from "../models/Material.js";
+import Order from "../models/order.js";
 import PDFDocument from "pdfkit";
 import Counter from "../models/Counter.js";
 import SVGtoPDF from "svg-to-pdfkit";
@@ -244,7 +245,7 @@ export const createInvoice = async (req, res) => {
       usingTransaction = false;
     }
 
-    const { customerId, customer, status, materials, date } = req.body;
+    const { customerId, customer, status, materials, date, sourceOrderId } = req.body;
 
     const customerRef = customerId || customer;
     if (!customerRef) {
@@ -316,6 +317,7 @@ export const createInvoice = async (req, res) => {
         {
           invoiceNumber,
           customer: customerRef,
+          sourceOrderId: sourceOrderId || null,
           status: status || "pending",
           materials: invoiceMaterials,
           amount,
@@ -330,6 +332,30 @@ export const createInvoice = async (req, res) => {
     const populated = await Invoice.findById(created._id)
       .populate("customer")
       .populate("materials.material");
+
+    // If invoice originates from an order, finalize selling/profit against that order.
+    if (sourceOrderId) {
+      try {
+        const linkedOrder = await Order.findById(sourceOrderId);
+        if (linkedOrder) {
+          const totalQty = (invoiceMaterials || []).reduce((s, item) => s + Number(item.quantity || 0), 0);
+          const totalSelling = (invoiceMaterials || []).reduce((s, item) => s + (Number(item.quantity || 0) * Number(item.rate || 0)), 0);
+          const unitCost = Number(linkedOrder.costPrice || 0);
+          const totalCost = Number((totalQty * unitCost).toFixed(2));
+          const totalProfit = Number((totalSelling - totalCost).toFixed(2));
+          const sellingPerUnit = totalQty > 0 ? Number((totalSelling / totalQty).toFixed(2)) : 0;
+
+          linkedOrder.sellingPrice = sellingPerUnit;
+          linkedOrder.profitPerUnit = Number((sellingPerUnit - unitCost).toFixed(2));
+          linkedOrder.profit = totalProfit;
+          linkedOrder.status = "completed";
+          await linkedOrder.save();
+        }
+      } catch (orderUpdateErr) {
+        console.error("createInvoice linked order update error:", orderUpdateErr);
+      }
+    }
+
     return res.status(201).json(populated);
   } catch (err) {
     if (usingTransaction && session) await session.abortTransaction();

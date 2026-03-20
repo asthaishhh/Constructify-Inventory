@@ -3,7 +3,7 @@ import Material from "../models/Material.js";
 
 const normalizeStatus = (status = "open") => {
   const s = String(status || "open").toLowerCase();
-  if (["open", "processing", "executed", "completed", "cancelled", "pending"].includes(s)) return s;
+  if (["open", "processing", "executed", "completed", "cancelled", "pending", "received"].includes(s)) return s;
   return "open";
 };
 

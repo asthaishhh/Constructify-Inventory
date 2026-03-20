@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import axios from "../utils/axiosConfig";
+import { useNavigate } from "react-router-dom";
 import {
   RefreshCw, Plus, X, Download, Search,
   FileText, Clock, CheckCircle, TrendingUp,
@@ -8,6 +9,7 @@ import {
 } from "lucide-react";
 
 export default function TraderOrdersDashboard() {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab]       = useState("mine");
   const [query, setQuery]               = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -17,6 +19,7 @@ export default function TraderOrdersDashboard() {
   const [sortOrder, setSortOrder]       = useState("desc");
   const [orders, setOrders]             = useState([]);
   const [materials, setMaterials]       = useState([]);
+  const [customers, setCustomers]       = useState([]);
   const [loading, setLoading]           = useState(true);
   const [error, setError]               = useState(null);
   const [refreshing, setRefreshing]     = useState(false);
@@ -66,6 +69,17 @@ export default function TraderOrdersDashboard() {
   };
 
   useEffect(() => { fetchMaterials(); }, []);
+
+  const fetchCustomers = async () => {
+    try {
+      const res = await axios.get(`${API_URL}/api/customers`);
+      setCustomers(Array.isArray(res.data) ? res.data : []);
+    } catch (err) {
+      console.error("Failed to fetch customers:", err);
+    }
+  };
+
+  useEffect(() => { fetchCustomers(); }, []);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -130,6 +144,36 @@ export default function TraderOrdersDashboard() {
     }
   };
 
+  const onMarkReceived = async (id) => {
+    try {
+      const o = orders.find((x) => x.id === id);
+      if (!o) return;
+      await axios.put(`${API_URL}/api/orders/${o._id}/status`, { status: "received" });
+      setOrders((prev) => prev.map((x) => (x.id === id ? { ...x, status: "received" } : x)));
+    } catch (err) {
+      alert("Failed to update status to Recieved");
+    }
+  };
+
+  const handleCreateInvoice = (order) => {
+    const matchedCustomer = customers.find((c) => c.name === order.client);
+    const prefill = {
+      source: "customer-order",
+      sourceOrderId: order._id,
+      orderId: order.id,
+      customerId: matchedCustomer?._id || "",
+      client: order.client || "",
+      materialName: order.materialName || "",
+      quantity: Number(order.quantity || 1),
+      // Selling rate must be decided at invoice time, so do not prefill from cost.
+      rate: "",
+      status: "pending",
+    };
+
+    localStorage.setItem("invoicePrefillFromOrder", JSON.stringify(prefill));
+    navigate("/bill", { state: { invoicePrefill: prefill } });
+  };
+
   const handleAddOrder = async () => {
     if (!orderForm.client || !orderForm.materialName || !orderForm.quantity || !orderForm.costPrice) {
       alert("Please fill all required fields!"); return;
@@ -187,6 +231,7 @@ export default function TraderOrdersDashboard() {
       case "open":      return { dot: "bg-amber-400",  badge: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400"   };
       case "executed":
       case "completed": return { dot: "bg-green-500",  badge: "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400"   };
+      case "received":  return { dot: "bg-indigo-500", badge: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300" };
       case "cancelled": return { dot: "bg-red-500",    badge: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400"           };
       default:          return { dot: "bg-gray-400",   badge: "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400"          };
     }
@@ -320,8 +365,27 @@ export default function TraderOrdersDashboard() {
                   <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5">
                     <User className="w-3.5 h-3.5" /> {activeTab === "mine" ? "Firm Name" : "Client"} *
                   </label>
-                  <input placeholder={activeTab === "mine" ? "Firm name…" : "Client name…"} value={orderForm.client}
-                    onChange={(e) => setOrderForm({ ...orderForm, client: e.target.value })} className={inputCls} />
+                  {activeTab === "customers" ? (
+                    <select
+                      value={orderForm.client}
+                      onChange={(e) => setOrderForm({ ...orderForm, client: e.target.value })}
+                      className={inputCls}
+                    >
+                      <option value="">Select customer</option>
+                      {customers.map((cust) => (
+                        <option key={cust._id} value={cust.name}>
+                          {cust.name}{cust.companyName ? ` (${cust.companyName})` : ""}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      placeholder="Firm name..."
+                      value={orderForm.client}
+                      onChange={(e) => setOrderForm({ ...orderForm, client: e.target.value })}
+                      className={inputCls}
+                    />
+                  )}
                 </div>
                 <div>
                   <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5">
@@ -382,7 +446,6 @@ export default function TraderOrdersDashboard() {
                 <input
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Search by order ID, client, or pair…"
                   placeholder="Search by order ID, client, or material…"
                   className="w-full pl-9 pr-9 py-2.5 border-2 border-gray-200 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-700/60 text-gray-900 dark:text-white placeholder-gray-400 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
                 />
@@ -398,6 +461,7 @@ export default function TraderOrdersDashboard() {
                   className="flex-1 sm:flex-none border-2 border-gray-200 dark:border-gray-600 rounded-xl px-3 py-2.5 bg-gray-50 dark:bg-gray-700/60 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all cursor-pointer min-w-[120px]">
                   <option value="all">All Status</option>
                   <option value="open">Open</option>
+                  <option value="received">Recieved</option>
                   <option value="executed">Executed</option>
                   <option value="completed">Completed</option>
                   <option value="cancelled">Cancelled</option>
@@ -501,6 +565,24 @@ export default function TraderOrdersDashboard() {
                           className="p-2 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-all" title="View">
                           <FileText className="w-4 h-4" />
                         </button>
+                        {activeTab === "customers" && (
+                          <button
+                            onClick={() => handleCreateInvoice(o)}
+                            className="p-2 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-lg transition-all"
+                            title="Create Invoice"
+                          >
+                            <Plus className="w-4 h-4" />
+                          </button>
+                        )}
+                        {activeTab === "mine" && o.status === "open" && (
+                          <button
+                            onClick={() => onMarkReceived(o.id)}
+                            className="p-2 text-indigo-600 dark:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-lg transition-all"
+                            title="Mark as Recieved"
+                          >
+                            <CheckCircle className="w-4 h-4" />
+                          </button>
+                        )}
                         {o.status === "open" && (
                           <button onClick={() => onCancel(o.id)}
                             className="p-2 text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-all" title="Cancel">
@@ -606,6 +688,22 @@ export default function TraderOrdersDashboard() {
                             className="px-2.5 py-1.5 text-xs font-semibold text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/40 rounded-lg transition-all">
                             View
                           </button>
+                          {activeTab === "customers" && (
+                            <button
+                              onClick={() => handleCreateInvoice(o)}
+                              className="px-2.5 py-1.5 text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 rounded-lg transition-all"
+                            >
+                              Create Invoice
+                            </button>
+                          )}
+                          {activeTab === "mine" && o.status === "open" && (
+                            <button
+                              onClick={() => onMarkReceived(o.id)}
+                              className="px-2.5 py-1.5 text-xs font-semibold text-indigo-600 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 rounded-lg transition-all"
+                            >
+                              Recieved
+                            </button>
+                          )}
                           {o.status === "open" && (
                             <button onClick={() => onCancel(o.id)}
                               className="px-2.5 py-1.5 text-xs font-semibold text-red-500 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 rounded-lg transition-all">

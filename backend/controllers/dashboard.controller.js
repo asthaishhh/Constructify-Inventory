@@ -17,6 +17,7 @@ const CATEGORY_COLORS = [
 const ORDER_STATUS_COLORS = {
   pending: "#f59e0b",
   processing: "#3b82f6",
+  received: "#6366f1",
   completed: "#10b981",
   cancelled: "#ef4444",
 };
@@ -147,7 +148,7 @@ export const getDashboardAnalytics = async (req, res) => {
     const monthlyMap = Object.fromEntries(
       monthKeys.map((monthKey) => [
         monthKey,
-        { month: monthLabelFromKey(monthKey), invoiceRevenue: 0, orderRevenue: 0, invoices: 0, orders: 0 },
+        { month: monthLabelFromKey(monthKey), invoiceRevenue: 0, orderRevenue: 0, orderProfit: 0, invoices: 0, orders: 0 },
       ])
     );
 
@@ -163,9 +164,11 @@ export const getDashboardAnalytics = async (req, res) => {
     }
 
     let orderRevenue = 0;
+    let totalProfit = 0;
     const orderStatusCount = {
       pending: 0,
       processing: 0,
+      received: 0,
       completed: 0,
       cancelled: 0,
     };
@@ -173,9 +176,12 @@ export const getDashboardAnalytics = async (req, res) => {
     for (const order of orders) {
       const amount = normalizeOrderAmount(order);
       orderRevenue += amount;
+      const orderProfit = Number(order?.profit || 0);
+      totalProfit += orderProfit;
       const monthKey = monthKeyFromDate(order?.orderDate || order?.createdAt);
       if (monthKey && monthlyMap[monthKey]) {
         monthlyMap[monthKey].orderRevenue += amount;
+        monthlyMap[monthKey].orderProfit += orderProfit;
         monthlyMap[monthKey].orders += 1;
       }
 
@@ -185,12 +191,13 @@ export const getDashboardAnalytics = async (req, res) => {
       }
     }
 
-    const totalRevenue = invoiceRevenue + orderRevenue;
+    // Revenue comes from invoices (selling); orderRevenue is treated as cost/exposure.
+    const totalRevenue = invoiceRevenue;
     const monthlyTrend = monthKeys.map((monthKey) => {
       const row = monthlyMap[monthKey];
-      const revenue = row.invoiceRevenue + row.orderRevenue;
+      const revenue = row.invoiceRevenue;
       const expenses = row.orderRevenue;
-      const profit = revenue - expenses;
+      const profit = row.orderProfit || (revenue - expenses);
       const margin = revenue > 0 ? (profit / revenue) * 100 : 0;
 
       return {
@@ -263,6 +270,7 @@ export const getDashboardAnalytics = async (req, res) => {
         totalRevenue: round2(totalRevenue),
         invoiceRevenue: round2(invoiceRevenue),
         orderRevenue: round2(orderRevenue),
+        totalProfit: round2(totalProfit),
         totalInvoices: invoices.length,
         totalOrders: orders.length,
         lowStockCount,
