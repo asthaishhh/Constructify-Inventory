@@ -879,7 +879,10 @@ const fetchInvoices = async () => {
       alert(`Invoice emailed to ${invoice.clientEmail || (invoice.customer && invoice.customer.email) || 'customer'}`);
     } catch (error) {
       console.error("Failed to send invoice via server:", error);
-      const msg = error.response?.data?.message || error.message || 'Failed to send invoice.';
+      // Show server-provided message and underlying error when available (temporary, for debugging)
+      const serverMessage = error.response?.data?.message;
+      const serverError = error.response?.data?.error;
+      const msg = serverError ? `${serverMessage || 'Failed to send invoice'}: ${serverError}` : serverMessage || error.message || 'Failed to send invoice.';
       alert(msg);
     } finally {
       setIsSendingEmail(null);

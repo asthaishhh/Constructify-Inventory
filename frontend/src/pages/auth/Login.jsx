@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import Logo from "../../components/layouts/Logo";
 
 const EyeIcon = () => (
@@ -59,9 +59,30 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [focusedField, setFocusedField] = useState(null);
+  const [infoMessage, setInfoMessage] = useState("");
 
   const navigate = useNavigate();
   const API_URL  = import.meta.env.VITE_API_URL || "";
+
+  const location = useLocation();
+
+  // Prefill email when navigated from registration (state or query param)
+  useEffect(() => {
+    // try location.state first
+    if (location?.state?.email) {
+      setEmail(String(location.state.email || ""));
+      setInfoMessage("Registration successful — please sign in with your registered email and password.");
+      return;
+    }
+    // then try query param
+    try {
+      const params = new URLSearchParams(location.search || "");
+      const e = params.get("email");
+      if (e) setEmail(e);
+    } catch (e) {
+      // ignore
+    }
+  }, [location]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -595,6 +616,17 @@ export default function Login() {
               <h2 className="form-title">Welcome back</h2>
               <p className="form-sub">Enter your credentials to access your account</p>
             </div>
+
+            {/* Info banner (shown after successful registration) */}
+            {infoMessage && (
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:10,background:'rgba(16,185,129,0.08)',border:'1px solid rgba(34,197,94,0.16)',borderRadius:10,padding:'0.65rem 0.9rem',marginBottom:'1rem'}}>
+                <div style={{display:'flex',alignItems:'center',gap:10}}>
+                  <div style={{width:18,height:18,background:'rgba(34,197,94,0.12)',borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',color:'#059669',fontWeight:700}}>✓</div>
+                  <div style={{color:'#064e3b',fontWeight:600,fontSize:13}}>{infoMessage}</div>
+                </div>
+                <button onClick={() => setInfoMessage("")} style={{background:'transparent',border:'none',color:'#064e3b',cursor:'pointer',fontWeight:600}}>Dismiss</button>
+              </div>
+            )}
 
             {/* Error */}
             {error && (

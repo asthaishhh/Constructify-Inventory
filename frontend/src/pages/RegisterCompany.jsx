@@ -205,20 +205,16 @@ export default function RegisterCompany() {
           return;
         }
 
-        // Save token to localStorage so user is logged in
-        if (data.token) {
-          localStorage.setItem("token", data.token);
-        }
-
-        // Save company profile locally (without password)
+        // Do NOT auto-login. Save company profile locally (without password)
         const { password: _p, confirmPassword: _c, ...profileToSave } = form;
         saveCompanyProfile(profileToSave);
 
         setSaved(true);
         setIsSubmitting(false);
+        // Redirect to login so the user can sign in with the registered email/password
         setTimeout(() => {
-          navigate("/settings");
-        }, 1000);
+          navigate("/login", { state: { email: form.email } });
+        }, 800);
       } catch (err) {
         console.error(err);
         setErrors((prev) => ({ ...prev, form: "Network or server error during signup" }));
