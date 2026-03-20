@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import axios from "../utils/axiosConfig";
+import { useNavigate } from "react-router-dom";
 import {
   Plus, Edit, Trash2, PackageSearch, Download,
   AlertTriangle, TrendingUp, Package, X, Search,
@@ -7,6 +8,7 @@ import {
 } from "lucide-react";
 
 export default function Inventory() {
+  const navigate = useNavigate();
   const NOTIF_KEY = "appNotifications";
   const [materials, setMaterials] = useState([]);
   const [search, setSearch] = useState("");
@@ -93,6 +95,20 @@ export default function Inventory() {
 
     prevCriticalSignaturesRef.current = currentSignatures;
   }, [materials]);
+
+  const handleRefillFromPopup = () => {
+    if (!criticalPopupItems.length) return;
+    const target = criticalPopupItems[0];
+    const refillPrefill = {
+      source: "critical-low-stock",
+      materialName: target.name,
+      quantity: Number(target.minStock || 1),
+    };
+
+    localStorage.setItem("orderRefillPrefill", JSON.stringify(refillPrefill));
+    setShowCriticalPopup(false);
+    navigate("/orders", { state: { orderRefillPrefill: refillPrefill } });
+  };
 
   /* ── Stock status helper ── */
   const getStockStatus = (m) => {
@@ -694,12 +710,20 @@ export default function Inventory() {
                 </div>
               ))}
             </div>
-            <button
-              onClick={() => setShowCriticalPopup(false)}
-              className="w-full px-4 py-2.5 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 text-white rounded-xl font-semibold text-sm"
-            >
-              Acknowledge
-            </button>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => setShowCriticalPopup(false)}
+                className="w-full px-4 py-2.5 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 text-white rounded-xl font-semibold text-sm"
+              >
+                Acknowledge
+              </button>
+              <button
+                onClick={handleRefillFromPopup}
+                className="w-full px-4 py-2.5 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white rounded-xl font-semibold text-sm"
+              >
+                Refill
+              </button>
+            </div>
           </div>
         </div>
       )}
