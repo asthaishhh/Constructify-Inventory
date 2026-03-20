@@ -131,6 +131,10 @@ const ConstructifyAnalytics = () => {
       }
     };
     load();
+
+    const onDashboardRefresh = () => load();
+    window.addEventListener("dashboard:refresh", onDashboardRefresh);
+    return () => window.removeEventListener("dashboard:refresh", onDashboardRefresh);
   }, []);
 
   /* ── filter helpers ── */

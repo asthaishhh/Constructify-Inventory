@@ -260,6 +260,7 @@ export const createInvoice = async (req, res) => {
 
     // 1) Validate + stock check
     const matchedMaterials = [];
+    const lowStockAlerts = [];
     for (const item of materials) {
       const name = String(item.name || "").trim();
       const qtyNeeded = Number(item.quantity);
@@ -279,10 +280,22 @@ export const createInvoice = async (req, res) => {
         return res.status(404).json({ message: `Material not found: ${name}` });
       }
 
+      // Check if we have enough stock to proceed
       if (dbMat.quantity < qtyNeeded) {
         if (usingTransaction && session) await session.abortTransaction();
         return res.status(400).json({
           message: `Insufficient stock for ${dbMat.name}. Available: ${dbMat.quantity}, required: ${qtyNeeded}`,
+        });
+      }
+
+      // Check if invoice would leave material below minStock threshold
+      const remainingQty = dbMat.quantity - qtyNeeded;
+      const minStockValue = Number(dbMat.minStock || 0);
+      if (minStockValue > 0 && remainingQty <= minStockValue) {
+        lowStockAlerts.push({
+          material: dbMat.name,
+          quantity: remainingQty,
+          minStock: minStockValue,
         });
       }
 
@@ -356,7 +369,9 @@ export const createInvoice = async (req, res) => {
       }
     }
 
-    return res.status(201).json(populated);
+    // Return invoice with low-stock warnings if any
+    const response = { ...populated.toObject(), lowStockAlerts };
+    return res.status(201).json(response);
   } catch (err) {
     if (usingTransaction && session) await session.abortTransaction();
     console.error("createInvoice error:", err);

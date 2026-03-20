@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import axios from "../utils/axiosConfig";
 import {
   Plus, Edit, Trash2, PackageSearch, Download,
@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 
 export default function Inventory() {
+  const NOTIF_KEY = "appNotifications";
   const [materials, setMaterials] = useState([]);
   const [search, setSearch] = useState("");
   const [showModal, setShowModal] = useState(false);
@@ -15,6 +16,10 @@ export default function Inventory() {
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [loading, setLoading] = useState(true);
+  const [notifications, setNotifications] = useState([]);
+  const [showCriticalPopup, setShowCriticalPopup] = useState(false);
+  const [criticalPopupItems, setCriticalPopupItems] = useState([]);
+  const prevCriticalSignaturesRef = useRef(new Set());
 
   const API_URL = import.meta.env.VITE_API_URL || "";
 
@@ -31,6 +36,63 @@ export default function Inventory() {
   };
 
   useEffect(() => { fetchMaterials(); }, []);
+
+  useEffect(() => {
+    try {
+      const existing = JSON.parse(localStorage.getItem(NOTIF_KEY) || "[]");
+      setNotifications(Array.isArray(existing) ? existing : []);
+    } catch (e) {
+      setNotifications([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    const onInventoryUpdated = () => {
+      fetchMaterials();
+      try {
+        const existing = JSON.parse(localStorage.getItem(NOTIF_KEY) || "[]");
+        setNotifications(Array.isArray(existing) ? existing : []);
+      } catch (e) {
+        setNotifications([]);
+      }
+    };
+
+    window.addEventListener("inventory:updated", onInventoryUpdated);
+    return () => window.removeEventListener("inventory:updated", onInventoryUpdated);
+  }, []);
+
+  useEffect(() => {
+    const criticalItems = materials.filter((m) => Number(m.minStock || 0) > 0 && Number(m.quantity || 0) < Number(m.minStock || 0) * 0.5);
+    const currentSignatures = new Set(criticalItems.map((m) => `${m._id}:${m.quantity}`));
+    const newCriticalItems = criticalItems.filter((m) => !prevCriticalSignaturesRef.current.has(`${m._id}:${m.quantity}`));
+
+    if (newCriticalItems.length > 0) {
+      setCriticalPopupItems(newCriticalItems);
+      setShowCriticalPopup(true);
+
+      const existing = (() => {
+        try {
+          return JSON.parse(localStorage.getItem(NOTIF_KEY) || "[]");
+        } catch (e) {
+          return [];
+        }
+      })();
+
+      const entries = newCriticalItems.map((m) => ({
+        id: `critical-${m._id}-${Date.now()}`,
+        type: "low-stock",
+        title: "Critical Stock",
+        message: `${m.name} is below critical threshold (${m.quantity} left, min ${m.minStock})`,
+        createdAt: new Date().toISOString(),
+      }));
+
+      const merged = [...entries, ...existing].slice(0, 30);
+      localStorage.setItem(NOTIF_KEY, JSON.stringify(merged));
+      setNotifications(merged);
+    }
+
+    prevCriticalSignaturesRef.current = currentSignatures;
+  }, [materials]);
 
   /* ── Stock status helper ── */
   const getStockStatus = (m) => {
@@ -306,6 +368,35 @@ export default function Inventory() {
           )}
         </section>
 
+        {/* ── Notification section ── */}
+        {notifications.length > 0 && (
+          <section className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm p-3 sm:p-4 mb-4 sm:mb-6">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-bold text-gray-900 dark:text-white">Notifications</h3>
+              <button
+                onClick={() => {
+                  localStorage.setItem(NOTIF_KEY, JSON.stringify([]));
+                  setNotifications([]);
+                }}
+                className="text-xs text-red-500 hover:text-red-600 font-semibold"
+              >
+                Clear all
+              </button>
+            </div>
+            <div className="space-y-2">
+              {notifications.slice(0, 5).map((n) => (
+                <div key={n.id} className="flex items-start gap-2 p-2.5 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
+                  <AlertTriangle className="w-4 h-4 text-amber-500 mt-0.5" />
+                  <div>
+                    <p className="text-xs font-semibold text-amber-700 dark:text-amber-300">{n.title}</p>
+                    <p className="text-xs text-amber-600 dark:text-amber-400">{n.message}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
         {/* ── Empty state ── */}
         {filtered.length === 0 && (
           <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm py-16 flex flex-col items-center gap-3">
@@ -576,6 +667,39 @@ export default function Inventory() {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Critical center popup ── */}
+      {showCriticalPopup && criticalPopupItems.length > 0 && (
+        <div className="fixed inset-0 bg-black/40 z-[60] flex items-center justify-center p-4">
+          <div className="max-w-lg w-full bg-white dark:bg-gray-800 rounded-2xl border border-red-200 dark:border-red-800 shadow-2xl p-5">
+            <div className="flex items-start justify-between gap-3 mb-3">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="w-5 h-5 text-red-500" />
+                <h3 className="text-base font-bold text-gray-900 dark:text-white">Critical Low Stock Alert</h3>
+              </div>
+              <button
+                onClick={() => setShowCriticalPopup(false)}
+                className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+              >
+                <X className="w-4 h-4 text-gray-500" />
+              </button>
+            </div>
+            <div className="space-y-2 mb-4">
+              {criticalPopupItems.map((m) => (
+                <div key={m._id} className="text-sm text-gray-700 dark:text-gray-300">
+                  <span className="font-semibold">{m.name}</span>: {m.quantity} left (min {m.minStock})
+                </div>
+              ))}
+            </div>
+            <button
+              onClick={() => setShowCriticalPopup(false)}
+              className="w-full px-4 py-2.5 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 text-white rounded-xl font-semibold text-sm"
+            >
+              Acknowledge
+            </button>
           </div>
         </div>
       )}
