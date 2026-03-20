@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import axios from "../utils/axiosConfig";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   RefreshCw, Plus, X, Download, Search,
   FileText, Clock, CheckCircle, TrendingUp,
@@ -10,6 +10,8 @@ import {
 
 export default function TraderOrdersDashboard() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const processedRefillKeyRef = useRef("");
   const [activeTab, setActiveTab]       = useState("mine");
   const [query, setQuery]               = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -69,6 +71,36 @@ export default function TraderOrdersDashboard() {
   };
 
   useEffect(() => { fetchMaterials(); }, []);
+
+  useEffect(() => {
+    const fromState = location?.state?.orderRefillPrefill;
+    const fromStorageRaw = localStorage.getItem("orderRefillPrefill");
+    const fromStorage = fromStorageRaw ? JSON.parse(fromStorageRaw) : null;
+    const prefill = fromState || fromStorage;
+
+    if (!prefill) return;
+    if (!materials.length) return;
+
+    const key = `${prefill.materialName || ""}-${prefill.quantity || ""}`;
+    if (processedRefillKeyRef.current === key) return;
+
+    const selectedMaterial = materials.find(
+      (m) => String(m.name || "").toLowerCase() === String(prefill.materialName || "").toLowerCase()
+    );
+
+    setActiveTab("mine");
+    setShowAddForm(true);
+    setOrderForm((prev) => ({
+      ...prev,
+      type: "mine",
+      materialName: selectedMaterial?.name || prefill.materialName || "",
+      quantity: String(Number(prefill.quantity || selectedMaterial?.minStock || 1)),
+      costPrice: selectedMaterial ? String(selectedMaterial.price ?? "") : prev.costPrice,
+    }));
+
+    processedRefillKeyRef.current = key;
+    localStorage.removeItem("orderRefillPrefill");
+  }, [location?.state, materials]);
 
   const fetchCustomers = async () => {
     try {

@@ -4,7 +4,7 @@ import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 // import logoImage from "../assets/logo.png";
 import { motion, AnimatePresence } from "framer-motion";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   Plus,
   Download,
@@ -172,6 +172,7 @@ function StatCard({ icon: Icon, label, value, color }) {
 // ── Main Component ─────────────────────────────────────────────
 export default function InvoiceGenerator() {
   const location = useLocation();
+  const navigate = useNavigate();
   const [invoices, setInvoices] = useState([]);
   const [materials, setMaterials] = useState([]);
   const [customers, setCustomers] = useState([]);
@@ -974,6 +975,20 @@ const fetchInvoices = async () => {
   const pendingCount = invoices.filter((i) => i.status === "pending").length;
   const paidCount = invoices.filter((i) => i.status === "paid").length;
 
+  const handleRefillFromPopup = () => {
+    if (!criticalPopupItems.length) return;
+    const target = criticalPopupItems[0];
+    const refillPrefill = {
+      source: "critical-low-stock",
+      materialName: target.material,
+      quantity: Number(target.minStock || 0),
+    };
+
+    localStorage.setItem("orderRefillPrefill", JSON.stringify(refillPrefill));
+    setShowCriticalPopup(false);
+    navigate("/orders", { state: { orderRefillPrefill: refillPrefill } });
+  };
+
   // ── Render ───────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-[#f5f6fa] font-sans">
@@ -1423,12 +1438,20 @@ const fetchInvoices = async () => {
                 </div>
               ))}
             </div>
-            <button
-              onClick={() => setShowCriticalPopup(false)}
-              className="w-full px-4 py-2.5 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 text-white rounded-xl font-semibold text-sm"
-            >
-              Acknowledge
-            </button>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => setShowCriticalPopup(false)}
+                className="w-full px-4 py-2.5 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 text-white rounded-xl font-semibold text-sm"
+              >
+                Acknowledge
+              </button>
+              <button
+                onClick={handleRefillFromPopup}
+                className="w-full px-4 py-2.5 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white rounded-xl font-semibold text-sm"
+              >
+                Refill
+              </button>
+            </div>
           </div>
         </div>
       )}
