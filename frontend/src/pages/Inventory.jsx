@@ -67,7 +67,12 @@ export default function Inventory() {
   }, []);
 
   useEffect(() => {
-    const criticalItems = materials.filter((m) => Number(m.minStock || 0) > 0 && Number(m.quantity || 0) < Number(m.minStock || 0) * 0.5);
+    const criticalItems = materials.filter((m) => {
+      const qty = Number(m.quantity || 0);
+      const minStock = Number(m.minStock || 0);
+      const threshold = minStock > 0 ? minStock : 1;
+      return qty < threshold;
+    });
     const currentSignatures = new Set(criticalItems.map((m) => `${m._id}:${m.quantity}`));
     const newCriticalItems = criticalItems.filter((m) => !prevCriticalSignaturesRef.current.has(`${m._id}:${m.quantity}`));
 
@@ -87,7 +92,7 @@ export default function Inventory() {
         id: `critical-${m._id}-${Date.now()}`,
         type: "low-stock",
         title: "Critical Stock",
-        message: `${m.name} is below critical threshold (${m.quantity} left, min ${m.minStock})`,
+        message: `${m.name} is below threshold (${m.quantity} left, min ${Number(m.minStock || 0) > 0 ? m.minStock : 1})`,
         createdAt: new Date().toISOString(),
       }));
 
@@ -115,9 +120,13 @@ export default function Inventory() {
 
   /* ── Stock status helper ── */
   const getStockStatus = (m) => {
-    if (m.quantity < m.minStock * 0.5)
+    const qty = Number(m.quantity || 0);
+    const minStock = Number(m.minStock || 0);
+    const threshold = minStock > 0 ? minStock : 1;
+
+    if (qty < threshold * 0.5)
       return { status: "Critical",  dot: "bg-red-500",    badge: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400" };
-    if (m.quantity < m.minStock)
+    if (qty < threshold)
       return { status: "Low Stock", dot: "bg-amber-400",  badge: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400" };
     return   { status: "In Stock",  dot: "bg-green-500",  badge: "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400" };
   };

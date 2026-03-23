@@ -50,7 +50,16 @@ const materialSchema = new mongoose.Schema({
 
   minStock: {
     type: Number,
-    default: 0
+    default: function () {
+      const name = String(this?.name || "").trim().toLowerCase();
+      const defaults = {
+        cement: 100,
+        bricks: 1000,
+        "iron rods": 100,
+        sand: 1000,
+      };
+      return Number(defaults[name] ?? 0);
+    }
   },
    reorderQuantity: {   // NEW FIELD
     type: Number,

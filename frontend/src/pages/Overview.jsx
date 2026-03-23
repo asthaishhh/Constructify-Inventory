@@ -5,7 +5,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
 import {
-  TrendingUp, TrendingDown, ReceiptIndianRupee,
+  ArrowUpRight, ArrowDownRight, ArrowRight, ReceiptIndianRupee,
   ShoppingCart, Package, AlertTriangle, BarChart2,
   Calendar, X, ChevronDown,
 } from "lucide-react";
@@ -183,16 +183,101 @@ const ConstructifyAnalytics = () => {
     };
   }, [revenueData, isFiltered, baseSummary]);
 
+  const monthComparison = useMemo(() => {
+    if (!Array.isArray(revenueData) || revenueData.length === 0) {
+      return { current: null, previous: null };
+    }
+    const current = revenueData[revenueData.length - 1];
+    const previous = revenueData.length > 1 ? revenueData[revenueData.length - 2] : null;
+    return { current, previous };
+  }, [revenueData]);
+
+  const getChangeMeta = (currentValue, previousValue) => {
+    const current = Number(currentValue || 0);
+    const previous = Number(previousValue || 0);
+
+    if (!Number.isFinite(current) || !Number.isFinite(previous)) {
+      return { pct: 0, trend: "flat" };
+    }
+
+    if (previous === 0) {
+      if (current > 0) return { pct: 100, trend: "up" };
+      return { pct: 0, trend: "flat" };
+    }
+
+    const pct = Number((((current - previous) / Math.abs(previous)) * 100).toFixed(1));
+    if (pct > 0) return { pct, trend: "up" };
+    if (pct < 0) return { pct, trend: "down" };
+    return { pct: 0, trend: "flat" };
+  };
+
+  const calcStockTurnover = (monthRow) => {
+    const revenue = Number(monthRow?.revenue || 0);
+    const expenses = Number(monthRow?.expenses || 0);
+    if (!Number.isFinite(revenue) || !Number.isFinite(expenses)) return 0;
+    if (expenses <= 0) return revenue > 0 ? revenue : 0;
+    return Number((revenue / expenses).toFixed(2));
+  };
+
+  const formatPct = (pct) => {
+    const num = Number(pct || 0);
+    if (num > 0) return `+${num}%`;
+    return `${num}%`;
+  };
+
+  const formatINR = (v) =>
+    new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", minimumFractionDigits: 0 }).format(v);
+
+  const statCards = useMemo(() => {
+    const current = monthComparison.current || {};
+    const previous = monthComparison.previous || {};
+
+    const revenueChange = getChangeMeta(current.revenue, previous.revenue);
+    const ordersChange = getChangeMeta(current.orders, previous.orders);
+    const lowStockChange = getChangeMeta(filteredStats.lowStockCount, baseSummary.lowStockCount);
+
+    const currentTurnover = calcStockTurnover(current);
+    const previousTurnover = calcStockTurnover(previous);
+    const turnoverChange = getChangeMeta(currentTurnover, previousTurnover);
+
+    return [
+      {
+        label: "Total Revenue",
+        value: statsLoading ? null : formatINR(filteredStats.totalRevenue),
+        icon: <ReceiptIndianRupee className="w-5 h-5 text-green-600 dark:text-green-400" />,
+        bg: "bg-green-50 dark:bg-green-900/20",
+        trend: revenueChange,
+      },
+      {
+        label: "Customer Orders",
+        value: statsLoading ? null : filteredStats.totalOrders.toLocaleString("en-IN"),
+        icon: <ShoppingCart className="w-5 h-5 text-blue-600 dark:text-blue-400" />,
+        bg: "bg-blue-50 dark:bg-blue-900/20",
+        trend: ordersChange,
+      },
+      {
+        label: "Low Stock Items",
+        value: statsLoading ? null : String(filteredStats.lowStockCount),
+        icon: <AlertTriangle className="w-5 h-5 text-amber-500" />,
+        bg: "bg-amber-50 dark:bg-amber-900/20",
+        trend: lowStockChange,
+      },
+      {
+        label: "Stock Turnover",
+        value: statsLoading ? null : `${currentTurnover.toFixed(2)}x`,
+        icon: <Package className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />,
+        bg: "bg-indigo-50 dark:bg-indigo-900/20",
+        trend: turnoverChange,
+      },
+    ];
+  }, [monthComparison, filteredStats, baseSummary, statsLoading]);
+
   /* ── chart config ── */
   const chartConfig = {
     Revenue: { dataKey: "revenue",  color: "#2563eb" },
     Orders:  { dataKey: "expenses", color: "#6366f1" },
     Profit:  { dataKey: "profit",   color: "#10b981" },
   }[chartType];
-
-  /* ── formatting ── */
-  const formatINR = (v) =>
-    new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", minimumFractionDigits: 0 }).format(v);
 
   /* ── filter label for display ── */
   const filterLabel = useMemo(() => {
@@ -331,32 +416,7 @@ const ConstructifyAnalytics = () => {
 
         {/* ── Stats Cards ── */}
         <section className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
-          {[
-            {
-              label: "Total Revenue", value: statsLoading ? null : formatINR(filteredStats.totalRevenue),
-              icon: <ReceiptIndianRupee className="w-5 h-5 text-green-600 dark:text-green-400" />,
-              bg: "bg-green-50 dark:bg-green-900/20",
-              trend: <span className="flex items-center gap-1 text-green-600 dark:text-green-400 text-xs font-semibold"><TrendingUp className="w-3.5 h-3.5" />+12.5%</span>,
-            },
-            {
-              label: "Customer Orders", value: statsLoading ? null : filteredStats.totalOrders.toLocaleString("en-IN"),
-              icon: <ShoppingCart className="w-5 h-5 text-blue-600 dark:text-blue-400" />,
-              bg: "bg-blue-50 dark:bg-blue-900/20",
-              trend: <span className="flex items-center gap-1 text-green-600 dark:text-green-400 text-xs font-semibold"><TrendingUp className="w-3.5 h-3.5" />+8.2%</span>,
-            },
-            {
-              label: "Low Stock Items", value: statsLoading ? null : String(filteredStats.lowStockCount),
-              icon: <AlertTriangle className="w-5 h-5 text-amber-500" />,
-              bg: "bg-amber-50 dark:bg-amber-900/20",
-              trend: <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400 text-xs font-semibold"><TrendingUp className="w-3.5 h-3.5" />+3.1%</span>,
-            },
-            {
-              label: "Stock Turnover", value: "4.2×",
-              icon: <Package className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />,
-              bg: "bg-indigo-50 dark:bg-indigo-900/20",
-              trend: <span className="flex items-center gap-1 text-red-500 dark:text-red-400 text-xs font-semibold"><TrendingDown className="w-3.5 h-3.5" />-2.3%</span>,
-            },
-          ].map(({ label, value, icon, bg, trend }) => (
+          {statCards.map(({ label, value, icon, bg, trend }) => (
             <div key={label} className="bg-white dark:bg-gray-800 rounded-2xl p-4 sm:p-5 border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md transition-all duration-200 hover:-translate-y-0.5">
               <div className="flex items-start justify-between gap-2 mb-3">
                 <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider leading-tight">{label}</p>
@@ -365,7 +425,21 @@ const ConstructifyAnalytics = () => {
               <div className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-1">
                 {value === null ? <Skeleton /> : value}
               </div>
-              {trend}
+              <span
+                className={`flex items-center gap-1 text-xs font-semibold ${
+                  trend?.trend === "up"
+                    ? "text-green-600 dark:text-green-400"
+                    : trend?.trend === "down"
+                      ? "text-red-500 dark:text-red-400"
+                      : "text-gray-500 dark:text-gray-400"
+                }`}
+              >
+                {trend?.trend === "up" && <ArrowUpRight className="w-3.5 h-3.5" />}
+                {trend?.trend === "down" && <ArrowDownRight className="w-3.5 h-3.5" />}
+                {trend?.trend === "flat" && <ArrowRight className="w-3.5 h-3.5" />}
+                {formatPct(trend?.pct)}
+                <span className="text-gray-400 dark:text-gray-500">vs previous month</span>
+              </span>
             </div>
           ))}
         </section>
