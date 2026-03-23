@@ -39,9 +39,23 @@ router.post("/", authorizeRoles("admin"), async (req, res) => {
     const companyId = getCompanyIdFromReq(req);
     if (!companyId) return res.status(403).json({ message: "Company context missing in token" });
 
-    const saved = await Material.create({ ...req.body, companyId });
+    const payload = {
+      ...req.body,
+      companyId,
+      name: String(req.body?.name || "").trim().toLowerCase(),
+      ...(req.body?.price !== undefined
+        ? { price: Number.isFinite(Number(req.body.price)) ? Number(req.body.price) : undefined }
+        : {}),
+    };
+
+    const saved = await Material.create(payload);
     res.status(201).json(saved);
   } catch (err) {
+    if (err?.code === 11000) {
+      return res.status(409).json({
+        message: "Material already exists for this company. Update quantity instead of adding duplicate.",
+      });
+    }
     res.status(400).json({ message: err.message });
   }
 });
@@ -55,9 +69,19 @@ router.put("/:id", authorizeRoles("admin"), async (req, res) => {
     const companyId = getCompanyIdFromReq(req);
     if (!companyId) return res.status(403).json({ message: "Company context missing in token" });
 
+    const payload = {
+      ...req.body,
+      ...(req.body?.name !== undefined
+        ? { name: String(req.body.name || "").trim().toLowerCase() }
+        : {}),
+      ...(req.body?.price !== undefined
+        ? { price: Number.isFinite(Number(req.body.price)) ? Number(req.body.price) : undefined }
+        : {}),
+    };
+
     const updated = await Material.findOneAndUpdate(
       { _id: req.params.id, companyId },
-      req.body,
+      payload,
       { new: true }
     );
 
@@ -67,6 +91,11 @@ router.put("/:id", authorizeRoles("admin"), async (req, res) => {
 
     res.json(updated);
   } catch (err) {
+    if (err?.code === 11000) {
+      return res.status(409).json({
+        message: "Material name already exists for this company.",
+      });
+    }
     res.status(400).json({ message: err.message });
   }
 });

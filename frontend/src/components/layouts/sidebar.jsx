@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { ChevronDown, X, Menu } from "lucide-react";
+import { ChevronDown, X, Menu, LogOut } from "lucide-react";
 import Logo from "./Logo";
 import menuItems from "./sideBarMenu";
 
@@ -36,6 +36,13 @@ function SidebarContent({ collapsed, onNavigate, onClose }) {
   const handleNav = (path) => {
     onNavigate("/" + path);
     onClose?.(); // close mobile drawer on navigation
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    onNavigate("/login");
+    onClose?.();
   };
 
   /* Avatar initials */
@@ -158,6 +165,24 @@ function SidebarContent({ collapsed, onNavigate, onClose }) {
             </div>
           )}
         </div>
+
+        {collapsed ? (
+          <button
+            onClick={handleLogout}
+            className="mt-2 w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/35 text-red-600 dark:text-red-400 text-sm font-semibold transition-all"
+            title="Logout"
+          >
+            <LogOut className="w-4 h-4" />
+          </button>
+        ) : (
+          <button
+            onClick={handleLogout}
+            className="mt-2 w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/35 text-red-600 dark:text-red-400 text-sm font-semibold transition-all"
+          >
+            <LogOut className="w-4 h-4" />
+            Logout
+          </button>
+        )}
       </div>
     </div>
   );

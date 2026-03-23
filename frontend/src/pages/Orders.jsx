@@ -8,6 +8,8 @@ import {
   ArrowRightLeft, Hash,
 } from "lucide-react";
 
+const DEFAULT_MATERIAL_OPTIONS = ["sand", "bricks", "cement", "iron rods"];
+
 export default function TraderOrdersDashboard() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -207,23 +209,26 @@ export default function TraderOrdersDashboard() {
   };
 
   const handleAddOrder = async () => {
-    if (!orderForm.client || !orderForm.materialName || !orderForm.quantity || !orderForm.costPrice) {
+    if (!orderForm.client || !orderForm.materialName || !orderForm.quantity) {
       alert("Please fill all required fields!"); return;
     }
 
-    const cost = Number(orderForm.costPrice);
-    if (!Number.isFinite(cost) || cost < 0) {
-      alert("Cost price must be a valid number.");
+    const typedCost = Number(orderForm.costPrice);
+    const hasTypedCost = String(orderForm.costPrice || "").trim() !== "" && Number.isFinite(typedCost) && typedCost >= 0;
+    if (!hasTypedCost) {
+      alert("Cost price is required.");
       return;
     }
 
+    const selectedMaterial = materials.find((m) => m.name === orderForm.materialName);
+    if (activeTab === "customers" && !selectedMaterial) {
+      alert("Selected material is not in inventory. Add it in Inventory first, then create the order.");
+      return;
+    }
+    const cost = typedCost;
+
     try {
-      const maxId = orders.reduce((max, o) => {
-        const n = parseInt((o.id || "ORD-0000").split("-")[1], 10);
-        return n > max ? n : max;
-      }, 0);
       const newOrder = {
-        id: `ORD-${String(maxId + 1).padStart(4, "0")}`,
         ...orderForm,
         quantity: Number(orderForm.quantity),
         costPrice: cost,
@@ -276,6 +281,10 @@ export default function TraderOrdersDashboard() {
     "outline-none transition-all";
 
   const hasActiveFilters = query || statusFilter !== "all" || dateFrom || dateTo;
+  const myOrderMaterialOptions = [...new Set([
+    ...DEFAULT_MATERIAL_OPTIONS,
+    ...materials.map((m) => String(m.name || "").trim().toLowerCase()).filter(Boolean),
+  ])];
 
   /* ── Loading ── */
   if (loading)
@@ -431,12 +440,27 @@ export default function TraderOrdersDashboard() {
                       setOrderForm({ ...orderForm, materialName: name, costPrice: m ? String(m.price ?? "") : orderForm.costPrice });
                     }}
                     className={inputCls}
+                    disabled={activeTab === "customers" && !materials.length}
                   >
-                    <option value="">Select material</option>
-                    {materials.map((m) => (
-                      <option key={m._id} value={m.name}>{m.name}</option>
+                    <option value="">
+                      {activeTab === "customers"
+                        ? (materials.length ? "Select material" : "No materials found")
+                        : "Select material"}
+                    </option>
+                    {(activeTab === "customers" ? materials.map((m) => m.name) : myOrderMaterialOptions).map((name) => (
+                      <option key={name} value={name}>{name}</option>
                     ))}
                   </select>
+                  {activeTab === "customers" && !materials.length && (
+                    <p className="text-xs text-amber-600 dark:text-amber-400 mt-1.5">
+                      Add material from Inventory first, then create order.
+                    </p>
+                  )}
+                  {activeTab === "mine" && (
+                    <p className="text-xs text-indigo-600 dark:text-indigo-300 mt-1.5">
+                      New materials can be procured from My Orders and will appear in inventory.
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5 block">Cost Price (₹) *</label>

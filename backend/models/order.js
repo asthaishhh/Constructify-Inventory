@@ -87,6 +87,11 @@ const orderSchema = new mongoose.Schema(
       default: "open",
     },
 
+    inventoryRefilled: {
+      type: Boolean,
+      default: false,
+    },
+
     orderDate: {
       type: Date,
       default: Date.now,

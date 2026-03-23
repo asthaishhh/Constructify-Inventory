@@ -376,13 +376,18 @@ export const createInvoice = async (req, res) => {
           const totalQty = (invoiceMaterials || []).reduce((s, item) => s + Number(item.quantity || 0), 0);
           const totalSelling = (invoiceMaterials || []).reduce((s, item) => s + (Number(item.quantity || 0) * Number(item.rate || 0)), 0);
           const unitCost = Number(linkedOrder.costPrice || 0);
-          const totalCost = Number((totalQty * unitCost).toFixed(2));
-          const totalProfit = Number((totalSelling - totalCost).toFixed(2));
           const sellingPerUnit = totalQty > 0 ? Number((totalSelling / totalQty).toFixed(2)) : 0;
 
           linkedOrder.sellingPrice = sellingPerUnit;
-          linkedOrder.profitPerUnit = Number((sellingPerUnit - unitCost).toFixed(2));
-          linkedOrder.profit = totalProfit;
+          if (Number.isFinite(unitCost) && unitCost > 0) {
+            const totalCost = Number((totalQty * unitCost).toFixed(2));
+            const totalProfit = Number((totalSelling - totalCost).toFixed(2));
+            linkedOrder.profitPerUnit = Number((sellingPerUnit - unitCost).toFixed(2));
+            linkedOrder.profit = totalProfit;
+          } else {
+            linkedOrder.profitPerUnit = 0;
+            linkedOrder.profit = 0;
+          }
           linkedOrder.status = "completed";
           await linkedOrder.save();
         }

@@ -35,7 +35,6 @@ const materialSchema = new mongoose.Schema({
 
   price: {
     type: Number,
-    required: true,
     min: 0
   },
 

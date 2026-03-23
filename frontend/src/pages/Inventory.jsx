@@ -2,10 +2,13 @@ import React, { useState, useEffect, useRef } from "react";
 import axios from "../utils/axiosConfig";
 import { useNavigate } from "react-router-dom";
 import {
-  Plus, Edit, Trash2, PackageSearch, Download,
+  Edit, Trash2, PackageSearch, Download,
   AlertTriangle, TrendingUp, Package, X, Search,
   Calendar, Tag, Layers,
 } from "lucide-react";
+
+const DEFAULT_MATERIAL_OPTIONS = ["sand", "bricks", "cement", "iron rods"];
+const MATERIAL_UNIT_OPTIONS = ["kg", "ton", "bags", "pieces", "m3"];
 
 export default function Inventory() {
   const navigate = useNavigate();
@@ -133,15 +136,22 @@ export default function Inventory() {
 
   /* ── Save (add / edit) ── */
   const handleSave = async () => {
+    if (!editItem) {
+      alert("Add Material form is disabled. Please use My Orders to refill inventory.");
+      return;
+    }
+
     if (!form.name || !form.quantity || !form.unit || !form.category) {
       alert("Please fill all required fields!");
       return;
     }
     const currentDate = new Date().toISOString().split("T")[0];
+    const normalizedName = String(form.name || "").trim().toLowerCase();
+
     try {
       if (editItem) {
         const res = await axios.put(`${API_URL}/api/materials/${editItem._id}`, {
-          name: form.name,
+          name: normalizedName,
           quantity: Number(form.quantity),
           unit: form.unit,
           category: form.category,
@@ -150,17 +160,20 @@ export default function Inventory() {
         });
         setMaterials((prev) => prev.map((m) => (m._id === editItem._id ? res.data : m)));
       } else {
-        const existing = materials.find((m) => m.name.toLowerCase() === form.name.toLowerCase());
+        const existing = materials.find(
+          (m) => String(m.name || "").toLowerCase() === normalizedName
+        );
         if (existing) {
           const res = await axios.put(`${API_URL}/api/materials/${existing._id}`, {
             ...existing,
+            name: normalizedName,
             quantity: existing.quantity + Number(form.quantity),
             lastUpdated: currentDate,
           });
           setMaterials((prev) => prev.map((m) => (m._id === existing._id ? res.data : m)));
         } else {
           const res = await axios.post(`${API_URL}/api/materials`, {
-            name: form.name,
+            name: normalizedName,
             quantity: Number(form.quantity),
             unit: form.unit,
             category: form.category,
@@ -170,10 +183,11 @@ export default function Inventory() {
           setMaterials((prev) => [...prev, res.data]);
         }
       }
+      closeModal();
     } catch (err) {
       console.error("Error saving material:", err.response?.data || err.message);
+      alert(err.response?.data?.message || "Failed to save material. Please check values and try again.");
     }
-    closeModal();
   };
 
   const handleDelete = async (id) => {
@@ -184,12 +198,6 @@ export default function Inventory() {
     } catch (err) {
       console.error("Error deleting material:", err);
     }
-  };
-
-  const openAddModal = () => {
-    setEditItem(null);
-    setForm({ name: "", quantity: "", unit: "", category: "", minStock: "" });
-    setShowModal(true);
   };
 
   const openEditModal = (m) => {
@@ -224,6 +232,12 @@ export default function Inventory() {
   };
 
   const categories = ["all", ...new Set(materials.map((m) => m.category).filter(Boolean))];
+  const materialNameOptions = [
+    ...new Set([
+      ...DEFAULT_MATERIAL_OPTIONS,
+      ...materials.map((m) => String(m.name || "").trim()).filter(Boolean),
+    ]),
+  ];
 
   const filtered = materials
     .filter((m) => m.name.toLowerCase().includes(search.toLowerCase()))
@@ -287,15 +301,14 @@ export default function Inventory() {
               <Download className="w-4 h-4 text-green-600" />
               <span>Export</span>
             </button>
-            <button
-              onClick={openAddModal}
-              className="flex items-center gap-1.5 px-3 sm:px-4 py-2 sm:py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 active:scale-95 text-white rounded-xl shadow-md shadow-blue-200 dark:shadow-blue-900/40 font-semibold text-xs sm:text-sm transition-all whitespace-nowrap"
-            >
-              <Plus className="w-4 h-4 flex-shrink-0" />
-              <span>Add Material</span>
-            </button>
           </div>
         </header>
+
+        <section className="bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-700 rounded-xl p-3 sm:p-4 mb-4 sm:mb-6">
+          <p className="text-xs sm:text-sm text-indigo-700 dark:text-indigo-300 font-medium">
+            Inventory additions are managed through My Orders completion. Use Orders page to procure and refill stock.
+          </p>
+        </section>
 
         {/* ── Stats Cards ── */}
         <section className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
@@ -606,7 +619,9 @@ export default function Inventory() {
                     value={form.name}
                     onChange={(e) => {
                       const sel = e.target.value;
-                      const existing = materials.find((m) => m.name === sel);
+                      const existing = materials.find(
+                        (m) => String(m.name || "").toLowerCase() === String(sel || "").toLowerCase()
+                      );
                       if (existing) {
                         setForm({
                           name: existing.name,
@@ -616,14 +631,14 @@ export default function Inventory() {
                           minStock: String(existing.minStock),
                         });
                       } else {
-                        setForm({ ...form, name: sel });
+                        setForm({ ...form, name: sel, unit: form.unit || "bags" });
                       }
                     }}
                     className={inputCls}
                   >
-                    <option value="">Select or add new material…</option>
-                    {materials.map((m) => (
-                      <option key={m._id} value={m.name}>{m.name}</option>
+                    <option value="">Select material…</option>
+                    {materialNameOptions.map((name) => (
+                      <option key={name} value={name}>{name}</option>
                     ))}
                   </select>
                 ) : (
@@ -655,9 +670,16 @@ export default function Inventory() {
                 </div>
                 <div>
                   <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5 block">Unit *</label>
-                  <input type="text" value={form.unit}
+                  <select
+                    value={form.unit}
                     onChange={(e) => setForm({ ...form, unit: e.target.value })}
-                    placeholder="bags / tons…" className={inputCls} />
+                    className={inputCls}
+                  >
+                    <option value="">Select unit…</option>
+                    {MATERIAL_UNIT_OPTIONS.map((unit) => (
+                      <option key={unit} value={unit}>{unit}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
 

@@ -6,6 +6,8 @@
   "scripts": {
     "start": "node server.js",
     "migrate:backfill-company": "node scripts/backfill_company_data_by_email.mjs",
+    "migrate:fix-material-indexes": "node scripts/fix_material_indexes.mjs",
+    "migrate:fix-order-indexes": "node scripts/fix_order_indexes.mjs",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

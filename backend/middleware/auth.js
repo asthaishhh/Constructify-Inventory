@@ -1,5 +1,6 @@
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
+import Company from "../models/Company.js";
 
 const authenticateToken = async (req, res, next) => {
   try {
@@ -31,12 +32,27 @@ const authenticateToken = async (req, res, next) => {
       return res.status(401).json({ message: "User not found" });
     }
 
-    const tokenCompanyId = decoded.companyId || null;
+    const tokenCompanyId = decoded.companyId ? String(decoded.companyId) : null;
     const dbCompanyId = user.companyId ? String(user.companyId) : null;
+
+    let resolvedCompanyId = dbCompanyId || tokenCompanyId || null;
+
+    // Backward compatibility: legacy users may not have companyId persisted yet.
+    // Resolve by matching company email, then persist for future requests.
+    if (!resolvedCompanyId) {
+      const normalizedEmail = String(user.email || "").toLowerCase().trim();
+      if (normalizedEmail) {
+        const matchedCompany = await Company.findOne({ email: normalizedEmail }).select("_id");
+        if (matchedCompany?._id) {
+          resolvedCompanyId = String(matchedCompany._id);
+          await User.updateOne({ _id: user._id }, { $set: { companyId: matchedCompany._id } });
+        }
+      }
+    }
 
     req.user = {
       ...user.toObject(),
-      companyId: tokenCompanyId || dbCompanyId,
+      companyId: resolvedCompanyId,
     };
     next();
 
