@@ -1,5 +1,5 @@
 
-import { ArrowDownRight, ArrowRight, ArrowUpRight, Eye, ReceiptIndianRupee, ShoppingCart, Users } from "lucide-react";
+import { ArrowDownRight, ArrowRight, ArrowUpRight, ReceiptIndianRupee, Users } from "lucide-react";
 import React, { useState, useEffect } from "react";
 import { getDashboardAnalytics } from "../../api/dashboard.api.js";
 
@@ -9,7 +9,33 @@ const StatsGrid = () => {
   const [totalRevenue, setTotalRevenue] = useState(0);
   const [totalCost, setTotalCost] = useState(0);
   const [totalProfit, setTotalProfit] = useState(0);
+  const [changes, setChanges] = useState({
+    revenue: { pct: 0, trend: "flat" },
+    profit: { pct: 0, trend: "flat" },
+    cost: { pct: 0, trend: "flat" },
+    orders: { pct: 0, trend: "flat" },
+  });
   const [loading, setLoading] = useState(true);
+
+  const getChangeMeta = (currentValue, previousValue) => {
+    const current = Number(currentValue || 0);
+    const previous = Number(previousValue || 0);
+
+    if (!Number.isFinite(current) || !Number.isFinite(previous)) {
+      return { pct: 0, trend: "flat" };
+    }
+
+    if (previous === 0) {
+      if (current > 0) return { pct: 100, trend: "up" };
+      return { pct: 0, trend: "flat" };
+    }
+
+    const rawPct = ((current - previous) / Math.abs(previous)) * 100;
+    const pct = Number(rawPct.toFixed(1));
+    if (pct > 0) return { pct, trend: "up" };
+    if (pct < 0) return { pct, trend: "down" };
+    return { pct: 0, trend: "flat" };
+  };
 
   // fetch customer orders count from backend
   useEffect(() => {
@@ -17,6 +43,9 @@ const StatsGrid = () => {
       try {
         const analytics = await getDashboardAnalytics();
         const summary = analytics?.summary || {};
+        const revenueTrend = Array.isArray(analytics?.revenueTrend) ? analytics.revenueTrend : [];
+        const currentMonth = revenueTrend[revenueTrend.length - 1] || {};
+        const previousMonth = revenueTrend[revenueTrend.length - 2] || {};
 
         const revenue = Number(summary.totalRevenue || 0);
         const cost = Number(summary.orderRevenue || 0);
@@ -26,6 +55,12 @@ const StatsGrid = () => {
         setTotalRevenue(revenue);
         setTotalCost(cost);
         setTotalProfit(profit);
+        setChanges({
+          revenue: getChangeMeta(currentMonth.revenue, previousMonth.revenue),
+          profit: getChangeMeta(currentMonth.profit, previousMonth.profit),
+          cost: getChangeMeta(currentMonth.expenses, previousMonth.expenses),
+          orders: getChangeMeta(currentMonth.orders, previousMonth.orders),
+        });
 
       } catch (err) {
         console.error("Error fetching data:", err);
@@ -33,6 +68,12 @@ const StatsGrid = () => {
         setTotalRevenue(0);
         setTotalCost(0);
         setTotalProfit(0);
+        setChanges({
+          revenue: { pct: 0, trend: "flat" },
+          profit: { pct: 0, trend: "flat" },
+          cost: { pct: 0, trend: "flat" },
+          orders: { pct: 0, trend: "flat" },
+        });
       } finally {
         setLoading(false);
       }
@@ -50,12 +91,18 @@ const StatsGrid = () => {
     }).format(price);
   };
 
+  const formatChange = (value) => {
+    const numeric = Number(value || 0);
+    if (numeric > 0) return `+${numeric}%`;
+    return `${numeric}%`;
+  };
+
   const StatsData = [
     {
       title: "Total Revenue",
       value: loading ? "..." : formatIndianPrice(totalRevenue),
-      change: "+12.5%",
-      trend: "up",
+      change: loading ? "..." : formatChange(changes.revenue.pct),
+      trend: changes.revenue.trend,
       icon: ReceiptIndianRupee,
       color: "from-emerald-500 to-teal-600",
       bgColor: "bg-emerald-50 dark:bg-emerald-900/20",
@@ -64,8 +111,8 @@ const StatsGrid = () => {
     {
       title: "Profit",
       value: loading ? "..." : formatIndianPrice(totalProfit),
-      change: "+9.8%",
-      trend: "up",
+      change: loading ? "..." : formatChange(changes.profit.pct),
+      trend: changes.profit.trend,
       icon: ArrowUpRight,
       color: "from-blue-500 to-indigo-600",
       bgColor: "bg-blue-50 dark:bg-blue-900/20",
@@ -74,8 +121,8 @@ const StatsGrid = () => {
     {
       title: "Cost",
       value: loading ? "..." : formatIndianPrice(totalCost),
-      change: "-3.2%",
-      trend: "down",
+      change: loading ? "..." : formatChange(changes.cost.pct),
+      trend: changes.cost.trend,
       icon: ArrowDownRight,
       color: "from-orange-500 to-red-600",
       bgColor: "bg-orange-50 dark:bg-orange-900/20",
@@ -84,8 +131,8 @@ const StatsGrid = () => {
     {
       title: "Customer Orders",
       value: loading ? "..." : customerOrders.toString(),
-      change: "+15.3%",
-      trend: "up",
+      change: loading ? "..." : formatChange(changes.orders.pct),
+      trend: changes.orders.trend,
       icon: Users,
       color: "from-purple-500 to-pink-600",
       bgColor: "bg-purple-50 dark:bg-purple-900/20",
@@ -109,15 +156,21 @@ const StatsGrid = () => {
                 {stats.value}
               </p>
               <div className=" flex items-center space-x-2">
-                {stats.trend === "up" ?
-                  (<ArrowUpRight className="w-4 h-4 text-emerald-500" />) : (<ArrowDownRight className="w-4 h-4 text-red-500" />)}
+                {stats.trend === "up" && <ArrowUpRight className="w-4 h-4 text-emerald-500" />}
+                {stats.trend === "down" && <ArrowDownRight className="w-4 h-4 text-red-500" />}
+                {stats.trend === "flat" && <ArrowRight className="w-4 h-4 text-slate-400" />}
 
                 <span
-                  className={`text-sm font-semibold ${stats.trend === "up" ? "text-emerald-500" : "text-red-500"
-                    }`}
+                  className={`text-sm font-semibold ${
+                    stats.trend === "up"
+                      ? "text-emerald-500"
+                      : stats.trend === "down"
+                        ? "text-red-500"
+                        : "text-slate-500"
+                  }`}
                 >
                   {stats.change}</span>
-                <span className="text-sm text-slate-500 dark:text-slate-400">VS last</span>
+                <span className="text-sm text-slate-500 dark:text-slate-400">vs previous month</span>
               </div>
             </div>
             <div
