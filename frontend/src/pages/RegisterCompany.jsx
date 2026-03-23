@@ -185,14 +185,19 @@ export default function RegisterCompany() {
       setIsSubmitting(true);
       try {
         const apiBase = import.meta.env.VITE_API_BASE || "http://localhost:5000";
-        const resp = await fetch(`${apiBase}/api/auth/signup`, {
+        const resp = await fetch(`${apiBase}/api/auth/register-company`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            name: form.ownerName,
+            companyName: form.companyName,
+            companyTagline: form.companyTagline,
+            logo: form.logo,
+            ownerName: form.ownerName,
+            gstIn: form.gstIn,
+            address: form.address,
+            phone: form.phone,
             email: form.email,
             password: form.password,
-            role: "admin",
           }),
         });
 

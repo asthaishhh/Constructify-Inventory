@@ -1,6 +1,9 @@
 import Material from "../models/Material.js";
 import Invoice from "../models/Invoice.js";
 import Order from "../models/order.js";
+import Customer from "../models/Customer.js";
+
+const getCompanyIdFromReq = (req) => String(req?.user?.companyId || "").trim();
 
 const CATEGORY_COLORS = [
   "#8B7E74",
@@ -85,7 +88,13 @@ const normalizeInvoiceAmount = (invoice) => {
 // GET /api/dashboard/low-stock
 export const getLowStockMaterials = async (req, res) => {
   try {
+    const companyId = getCompanyIdFromReq(req);
+    if (!companyId) {
+      return res.status(403).json({ message: "Company context missing in token" });
+    }
+
     const lowStock = await Material.find({
+      companyId,
       $expr: { $lte: ["$quantity", "$minStock"] },
     }).sort({ quantity: 1 });
 
@@ -105,26 +114,30 @@ export const getLowStockMaterials = async (req, res) => {
 // GET /api/dashboard/summary
 export const getDashboardSummary = async (req, res) => {
   try {
+    const companyId = getCompanyIdFromReq(req);
+    if (!companyId) {
+      return res.status(403).json({ message: "Company context missing in token" });
+    }
+
     const [totalMaterials, totalCustomers, totalInvoices, totalOrders] =
       await Promise.all([
-        Material.countDocuments(),
-        // If you have Customer model, replace this line accordingly
-        // Customer.countDocuments(),
-        Promise.resolve(null), // placeholder if you don't want customer count here
-        Invoice.countDocuments(),
-        Order.countDocuments(),
+        Material.countDocuments({ companyId }),
+        Customer.countDocuments({ companyId }),
+        Invoice.countDocuments({ companyId }),
+        Order.countDocuments({ companyId }),
       ]);
 
     const lowStockCount = await Material.countDocuments({
+      companyId,
       $expr: { $lte: ["$quantity", "$minStock"] },
     });
 
     res.json({
       totalMaterials,
+      totalCustomers,
       totalInvoices,
       totalOrders,
       lowStockCount,
-      // totalCustomers, // uncomment if you add Customer model here
     });
   } catch (err) {
     res.status(500).json({
@@ -138,10 +151,15 @@ export const getDashboardSummary = async (req, res) => {
 // GET /api/dashboard/analytics
 export const getDashboardAnalytics = async (req, res) => {
   try {
+    const companyId = getCompanyIdFromReq(req);
+    if (!companyId) {
+      return res.status(403).json({ message: "Company context missing in token" });
+    }
+
     const [materials, invoices, orders] = await Promise.all([
-      Material.find().lean(),
-      Invoice.find().populate("materials.material", "name").lean(),
-      Order.find().lean(),
+      Material.find({ companyId }).lean(),
+      Invoice.find({ companyId }).populate("materials.material", "name").lean(),
+      Order.find({ companyId }).lean(),
     ]);
 
     const monthKeys = createTrailingMonthKeys(12);

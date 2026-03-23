@@ -7,6 +7,8 @@ import authorizeRoles from "../middleware/authorize.js";
 
 const router = express.Router();
 
+const getCompanyIdFromReq = (req) => String(req?.user?.companyId || "").trim();
+
 /* -------------------------
    🔐 Require Login for all
 --------------------------*/
@@ -18,7 +20,10 @@ router.use(authenticateToken);
 --------------------------*/
 router.get("/", authorizeRoles("admin", "user"), async (req, res) => {
   try {
-    const materials = await Material.find().sort({ createdAt: -1 });
+    const companyId = getCompanyIdFromReq(req);
+    if (!companyId) return res.status(403).json({ message: "Company context missing in token" });
+
+    const materials = await Material.find({ companyId }).sort({ createdAt: -1 });
     res.json(materials);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -31,7 +36,10 @@ router.get("/", authorizeRoles("admin", "user"), async (req, res) => {
 --------------------------*/
 router.post("/", authorizeRoles("admin"), async (req, res) => {
   try {
-    const saved = await Material.create(req.body);
+    const companyId = getCompanyIdFromReq(req);
+    if (!companyId) return res.status(403).json({ message: "Company context missing in token" });
+
+    const saved = await Material.create({ ...req.body, companyId });
     res.status(201).json(saved);
   } catch (err) {
     res.status(400).json({ message: err.message });
@@ -44,9 +52,14 @@ router.post("/", authorizeRoles("admin"), async (req, res) => {
 --------------------------*/
 router.put("/:id", authorizeRoles("admin"), async (req, res) => {
   try {
-    const updated = await Material.findByIdAndUpdate(req.params.id, req.body, {
-      new: true,
-    });
+    const companyId = getCompanyIdFromReq(req);
+    if (!companyId) return res.status(403).json({ message: "Company context missing in token" });
+
+    const updated = await Material.findOneAndUpdate(
+      { _id: req.params.id, companyId },
+      req.body,
+      { new: true }
+    );
 
     if (!updated) {
       return res.status(404).json({ message: "Material not found" });
@@ -64,7 +77,10 @@ router.put("/:id", authorizeRoles("admin"), async (req, res) => {
 --------------------------*/
 router.delete("/:id", authorizeRoles("admin"), async (req, res) => {
   try {
-    const deleted = await Material.findByIdAndDelete(req.params.id);
+    const companyId = getCompanyIdFromReq(req);
+    if (!companyId) return res.status(403).json({ message: "Company context missing in token" });
+
+    const deleted = await Material.findOneAndDelete({ _id: req.params.id, companyId });
 
     if (!deleted) {
       return res.status(404).json({ message: "Material not found" });

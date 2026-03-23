@@ -31,7 +31,13 @@ const authenticateToken = async (req, res, next) => {
       return res.status(401).json({ message: "User not found" });
     }
 
-    req.user = user;
+    const tokenCompanyId = decoded.companyId || null;
+    const dbCompanyId = user.companyId ? String(user.companyId) : null;
+
+    req.user = {
+      ...user.toObject(),
+      companyId: tokenCompanyId || dbCompanyId,
+    };
     next();
 
   } catch (error) {

@@ -2,10 +2,16 @@ import mongoose from "mongoose";
 
 const orderSchema = new mongoose.Schema(
   {
+    companyId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Company",
+      required: true,
+      index: true,
+    },
+
     id: {
       type: String,
       required: true,
-      unique: true,
       trim: true,
       index: true,
     },
@@ -88,6 +94,8 @@ const orderSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+orderSchema.index({ companyId: 1, id: 1 }, { unique: true });
 
 const Order = mongoose.model("Order", orderSchema);
 

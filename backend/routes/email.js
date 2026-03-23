@@ -253,7 +253,8 @@ router.post(
 
       const { pdfBuffer, invoice } = await generateInvoicePdfBuffer(
         invoiceId,
-        companyProfile || {}
+        companyProfile || {},
+        req.user?.companyId || null
       );
 
       if (!pdfBuffer || !invoice) {

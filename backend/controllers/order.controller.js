@@ -1,6 +1,8 @@
 import Order from "../models/order.js";
 import Material from "../models/Material.js";
 
+const getCompanyIdFromReq = (req) => String(req?.user?.companyId || "").trim();
+
 const normalizeStatus = (status = "open") => {
   const s = String(status || "open").toLowerCase();
   if (["open", "processing", "executed", "completed", "cancelled", "pending", "received"].includes(s)) return s;
@@ -33,6 +35,9 @@ CREATE ORDER
 */
 export const createOrder = async (req, res) => {
   try {
+    const companyId = getCompanyIdFromReq(req);
+    if (!companyId) return res.status(403).json({ message: "Company context missing in token" });
+
     const {
       id,
       type,
@@ -52,7 +57,10 @@ export const createOrder = async (req, res) => {
       return res.status(400).json({ message: "quantity must be greater than 0" });
     }
 
-    const material = await Material.findOne({ name: new RegExp(`^${String(materialName).trim()}$`, "i") });
+    const material = await Material.findOne({
+      companyId,
+      name: new RegExp(`^${String(materialName).trim()}$`, "i"),
+    });
     if (!material) {
       return res.status(404).json({ message: `Material not found: ${materialName}` });
     }
@@ -77,6 +85,7 @@ export const createOrder = async (req, res) => {
     const profit = 0;
 
     const newOrder = new Order({
+      companyId,
       id,
       type: type === "customers" ? "customers" : "mine",
       client,
@@ -110,7 +119,10 @@ GET ALL ORDERS
 */
 export const getOrders = async (req, res) => {
   try {
-    const orders = await Order.find()
+    const companyId = getCompanyIdFromReq(req);
+    if (!companyId) return res.status(403).json({ message: "Company context missing in token" });
+
+    const orders = await Order.find({ companyId })
       .populate("material", "name unit")
       .sort({ createdAt: -1 });
 
@@ -126,7 +138,10 @@ GET SINGLE ORDER
 */
 export const getOrderById = async (req, res) => {
   try {
-    const order = await Order.findById(req.params.id).populate("material", "name unit");
+    const companyId = getCompanyIdFromReq(req);
+    if (!companyId) return res.status(403).json({ message: "Company context missing in token" });
+
+    const order = await Order.findOne({ _id: req.params.id, companyId }).populate("material", "name unit");
 
     if (!order) {
       return res.status(404).json({ message: "Order not found" });
@@ -144,10 +159,13 @@ UPDATE ORDER STATUS
 */
 export const updateOrderStatus = async (req, res) => {
   try {
+    const companyId = getCompanyIdFromReq(req);
+    if (!companyId) return res.status(403).json({ message: "Company context missing in token" });
+
     const { status } = req.body;
 
-    const order = await Order.findByIdAndUpdate(
-      req.params.id,
+    const order = await Order.findOneAndUpdate(
+      { _id: req.params.id, companyId },
       { status: normalizeStatus(status) },
       { new: true }
     );
@@ -171,7 +189,10 @@ DELETE ORDER
 */
 export const deleteOrder = async (req, res) => {
   try {
-    const order = await Order.findByIdAndDelete(req.params.id);
+    const companyId = getCompanyIdFromReq(req);
+    if (!companyId) return res.status(403).json({ message: "Company context missing in token" });
+
+    const order = await Order.findOneAndDelete({ _id: req.params.id, companyId });
 
     if (!order) {
       return res.status(404).json({ message: "Order not found" });

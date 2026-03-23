@@ -1,11 +1,17 @@
 import mongoose from "mongoose";
 
 const materialSchema = new mongoose.Schema({
+  companyId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Company",
+    required: true,
+    index: true,
+  },
+
   name: {
     type: String,
     required: true,
     trim: true,
-    unique: true,
     enum: ["sand", "cement", "iron rods", "bricks"]
   },
 
@@ -53,6 +59,8 @@ const materialSchema = new mongoose.Schema({
   }
 
 }, { timestamps: true });
+
+materialSchema.index({ companyId: 1, name: 1 }, { unique: true });
 
 const Material = mongoose.model("Material", materialSchema);
 export default Material;
