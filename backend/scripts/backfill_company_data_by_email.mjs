@@ -1,5 +1,7 @@
 import dotenv from "dotenv";
 import mongoose from "mongoose";
+import path from "path";
+import { fileURLToPath } from "url";
 
 import Company from "../models/Company.js";
 import User from "../models/User.js";
@@ -11,6 +13,8 @@ import Employee from "../models/Employee.js";
 import InventoryTransaction from "../models/InventoryTransaction.js";
 
 const TARGET_EMAIL = "asthaishhh@gmail.com";
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const slugify = (value = "") =>
   String(value)
@@ -54,7 +58,7 @@ const findOrCreateCompany = async () => {
 };
 
 const run = async () => {
-  dotenv.config({ path: new URL("../.env", import.meta.url).pathname });
+  dotenv.config({ path: path.join(__dirname, "..", ".env") });
 
   if (!process.env.MONGODB_URI) {
     throw new Error("MONGODB_URI not set in backend/.env");

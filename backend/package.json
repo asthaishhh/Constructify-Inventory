@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "start": "node server.js",
+    "migrate:backfill-company": "node scripts/backfill_company_data_by_email.mjs",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
