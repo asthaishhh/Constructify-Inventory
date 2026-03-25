@@ -36,6 +36,15 @@ const parseMonthLabel = (label = "") => {
   return isNaN(d.getTime()) ? null : d;
 };
 
+const getYearMonthFromRow = (row = {}) => {
+  if (typeof row?.monthKey === "string" && /^\d{4}-\d{2}$/.test(row.monthKey)) {
+    return row.monthKey;
+  }
+  const parsed = parseMonthLabel(row?.month || "");
+  if (!parsed) return "";
+  return `${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, "0")}`;
+};
+
 /* Quick-preset ranges */
 const PRESETS = [
   { label: "Last 3 months", months: 3 },
@@ -157,15 +166,15 @@ const ConstructifyAnalytics = () => {
 
   /* ── filtered time-series data ── */
   const filterByRange = (arr) => {
-    if (!dateFrom && !dateTo) return arr;
-    return arr.filter((row) => {
-      const d = parseMonthLabel(row.month);
-      if (!d) return true;
-      const ym = toYM(d);
+    const filtered = (arr || []).filter((row) => {
+      const ym = getYearMonthFromRow(row);
+      if (!ym) return true;
       if (dateFrom && ym < dateFrom) return false;
       if (dateTo   && ym > dateTo)   return false;
       return true;
     });
+
+    return filtered.sort((a, b) => getYearMonthFromRow(a).localeCompare(getYearMonthFromRow(b)));
   };
 
   const revenueData    = useMemo(() => filterByRange(rawRevenue), [rawRevenue, dateFrom, dateTo]);
