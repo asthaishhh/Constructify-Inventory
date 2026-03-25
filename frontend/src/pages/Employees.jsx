@@ -34,11 +34,28 @@ export default function WarehouseEmployees() {
   const role = user?.role;
   const isAdmin = role === "admin";
 
+  const normalizeEmployee = (emp) => {
+    const safeSalary = Number(emp?.salary);
+    const safeExperience = Number(emp?.experience);
+    return {
+      ...emp,
+      designation: emp?.designation || emp?.role || "",
+      role: emp?.role || emp?.designation || "",
+      experience: Number.isFinite(safeExperience) ? safeExperience : 0,
+      salary: Number.isFinite(safeSalary) ? safeSalary : 0,
+      shift: emp?.shift || "",
+      photo:
+        emp?.photo ||
+        `https://randomuser.me/api/portraits/${Math.random() > 0.5 ? "men" : "women"}/${Math.floor(Math.random() * 70)}.jpg`,
+    };
+  };
+
   useEffect(() => {
     const fetchEmployees = async () => {
       try {
         const res = await axios.get(`${API_URL}/api/employees`);
-        setEmployees(res.data);
+        const payload = Array.isArray(res.data) ? res.data : res.data?.employees || [];
+        setEmployees(payload.map(normalizeEmployee));
       } catch (err) {
         console.error("Error fetching employees:", err);
       } finally {
@@ -83,19 +100,23 @@ export default function WarehouseEmployees() {
         if (!isAdmin) { alert("You are not authorized to edit employees."); return; }
         const res = await axios.put(`${API_URL}/api/employees/${editingEmployee._id}`, {
           ...formData,
+          role: formData.designation,
           experience: Number(formData.experience),
           salary: Number(formData.salary),
         });
-        setEmployees((prev) => prev.map((emp) => (emp._id === res.data._id ? res.data : emp)));
+        const updatedEmployee = normalizeEmployee(res.data?.employee || res.data);
+        setEmployees((prev) => prev.map((emp) => (emp._id === updatedEmployee._id ? updatedEmployee : emp)));
       } else {
         const newEmp = {
           ...formData,
+          role: formData.designation,
           experience: Number(formData.experience),
           salary: Number(formData.salary),
           photo: formData.photo || `https://randomuser.me/api/portraits/${Math.random() > 0.5 ? "men" : "women"}/${Math.floor(Math.random() * 70)}.jpg`,
         };
         const res = await axios.post(`${API_URL}/api/employees`, newEmp);
-        setEmployees([...employees, res.data]);
+        const createdEmployee = normalizeEmployee(res.data?.employee || res.data);
+        setEmployees((prev) => [...prev, createdEmployee]);
       }
     } catch (err) {
       console.error("Error saving employee:", err);
@@ -119,7 +140,19 @@ export default function WarehouseEmployees() {
     }
   };
 
-  const openEditModal = (emp) => { setEditingEmployee(emp); setFormData(emp); setModalOpen(true); };
+  const openEditModal = (emp) => {
+    setEditingEmployee(emp);
+    setFormData({
+      name: emp.name || "",
+      designation: emp.designation || emp.role || "",
+      experience: String(emp.experience ?? ""),
+      salary: String(emp.salary ?? ""),
+      shift: emp.shift || "",
+      contact: emp.contact || "",
+      photo: emp.photo || "",
+    });
+    setModalOpen(true);
+  };
   const openAddModal = () => {
     setEditingEmployee(null);
     setFormData({ name: "", designation: "", experience: "", salary: "", shift: "", contact: "", photo: "" });
