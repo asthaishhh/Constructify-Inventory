@@ -1,44 +1,92 @@
-import { MoreHorizontal, TrendingDown, TrendingUp } from 'lucide-react';
+import { MoreHorizontal } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import axios from "../../utils/axiosConfig";
 
 function TableSection() {
   const [orders, setOrders] = useState([]);
+  const [topProducts, setTopProducts] = useState([]);
   const [showAll, setShowAll] = useState(false);
-
-  const API_BASE_URL = "/api";
+  const [loadingOrders, setLoadingOrders] = useState(true);
+  const [loadingProducts, setLoadingProducts] = useState(true);
 
   useEffect(() => {
-    const fetchCustomerOrders = async () => {
+    const fetchRecentCustomerOrders = async () => {
       try {
-        const res = await axios.get(`${API_BASE_URL}/dashboard-orders`);
+        setLoadingOrders(true);
+        const res = await axios.get('/api/orders');
         const data = Array.isArray(res.data) ? res.data : [];
 
-        // keep only customer orders and normalize fields for the recent table
         const customerOrders = data
-          .filter((o) => o.type === "customers")
+          .filter((o) => {
+            const type = String(o.type || '').toLowerCase();
+            return type === 'customers' || type === 'customer';
+          })
           .map((o) => {
-            const qty = Number(o.quantity) || 0;
-            const price = Number(o.price) || 0;
-            const amountValue = qty && price ? qty * price : (o.amount ? Number(String(o.amount).replace(/[^0-9.-]+/g,"")) : 0);
+            const qty = Number(o.quantity || 0);
+            const unitPrice = Number(o.sellingPrice || o.price || o.costPrice || 0);
+            const fallbackTotal = Number(o.totalAmount || 0);
+            const amountValue = qty > 0 && unitPrice > 0 ? qty * unitPrice : fallbackTotal;
             return {
-              id: o.id ?? o.orderId ?? "",
-              customer: o.client ?? o.customer ?? "—",
-              product: o.product ?? o.pair ?? "",
+              id: o.id || o.orderId || '—',
+              customer: o.client || o.customer || '—',
+              product: o.materialName || (o.material && o.material.name) || '—',
               amount: formatIndianPrice(amountValue),
-              status: o.status ?? "unknown",
-              date: o.createdAt ? new Date(o.createdAt).toISOString().split("T")[0] : "",
+              status: o.status || 'unknown',
+              createdAt: o.createdAt || o.orderDate || null,
+              date: o.createdAt ? new Date(o.createdAt).toLocaleDateString('en-IN') : '',
             };
-          });
+          })
+          .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
 
         setOrders(customerOrders);
       } catch (err) {
-        console.error("Error fetching customer orders:", err);
+        console.error('Error fetching customer orders:', err);
         setOrders([]);
+      } finally {
+        setLoadingOrders(false);
       }
     };
 
-    fetchCustomerOrders();
+    const fetchTopProducts = async () => {
+      try {
+        setLoadingProducts(true);
+        const res = await axios.get('/api/dashboard/analytics');
+        const categories = Array.isArray(res?.data?.salesByCategory)
+          ? res.data.salesByCategory
+          : [];
+
+        setTopProducts(
+          categories.map((item, index) => ({
+            rank: index + 1,
+            name: item.name || 'Other',
+            share: Number(item.value || 0),
+            revenue: Number(item.amount || 0),
+            color: item.color || '#64748b',
+          }))
+        );
+      } catch (err) {
+        console.error('Error fetching top products:', err);
+        setTopProducts([]);
+      } finally {
+        setLoadingProducts(false);
+      }
+    };
+
+    fetchRecentCustomerOrders();
+    fetchTopProducts();
+
+    const refresh = () => {
+      fetchRecentCustomerOrders();
+      fetchTopProducts();
+    };
+
+    window.addEventListener('dashboard:refresh', refresh);
+    window.addEventListener('inventory:updated', refresh);
+
+    return () => {
+      window.removeEventListener('dashboard:refresh', refresh);
+      window.removeEventListener('inventory:updated', refresh);
+    };
   }, []);
 
   const getStatusColor = (status) => {
@@ -53,37 +101,6 @@ function TableSection() {
         return "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400";
     }
   };
-
-  const products = [
-    {
-      name: "Cement",
-      sales: 3421,
-      revenue: "Rs 68,420",
-      trend: "up",
-      change: "1.2%",
-    },
-    {
-      name: "Bricks",
-      sales: 2783,
-      revenue: "Rs 54,660",
-      trend: "down",
-      change: "-0.8%",
-    },
-    {
-      name: "Iron Rods",
-      sales: 1950,
-      revenue: "Rs 78,000",
-      trend: "up",
-      change: "2.5%",
-    },
-    {
-      name: "Sand",
-      sales: 3120,
-      revenue: "Rs 46,800",
-      trend: "up",
-      change: "1.0%",
-    },
-  ];
 
   const visibleOrders = showAll ? orders : orders.slice(0, 5);
 
@@ -147,6 +164,14 @@ function TableSection() {
               </tr>
             </thead>
             <tbody>
+              {!loadingOrders && visibleOrders.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="p-6 text-center text-sm text-slate-500 dark:text-slate-400">
+                    No recent customer orders found.
+                  </td>
+                </tr>
+              )}
+
               {visibleOrders.map((order, index) => (
                 <tr
                   key={index}
@@ -185,34 +210,37 @@ function TableSection() {
           </div>
 
           <div className="p-6 space-y-4">
-            {products.map((product, index) => (
+            {loadingProducts && (
+              <p className="text-sm text-slate-500 dark:text-slate-400">Loading top products...</p>
+            )}
+
+            {!loadingProducts && topProducts.length === 0 && (
+              <p className="text-sm text-slate-500 dark:text-slate-400">No product sales data available.</p>
+            )}
+
+            {!loadingProducts && topProducts.map((product, index) => (
               <div
                 key={index}
                 className="flex items-center justify-between p-4 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
               >
                 <div className="flex-1">
-                  <h4 className="text-sm font-semibold text-slate-800 dark:text-white">
+                  <h4 className="text-sm font-semibold text-slate-800 dark:text-white flex items-center gap-2">
+                    <span
+                      className="inline-block w-2.5 h-2.5 rounded-full"
+                      style={{ backgroundColor: product.color }}
+                    />
+                    #{product.rank}
                     {product.name}
                   </h4>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">{product.sales}</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Share: {product.share.toFixed(1)}%
+                  </p>
                 </div>
                 <div className="text-right">
                   <p className="text-sm font-semibold text-slate-800 dark:text-white">
-                    {product.revenue}
+                    {formatIndianPrice(product.revenue)}
                   </p>
-                  <div className="flex items-center space-x-1">
-                    {product.trend === "up" ? (
-                      <TrendingUp className="w-5 h-4 text-emerald-500" />
-                    ) : (
-                      <TrendingDown className="w-5 h-4 text-red-500" />
-                    )}
-                    <span
-                      className={`text-xs font-medium ${product.trend === "up" ? "text-emerald-500" : "text-red-500"
-                        }`}
-                    >
-                      {product.change}
-                    </span>
-                  </div>
+                  <div className="text-xs font-medium text-slate-500 dark:text-slate-400">Revenue</div>
                 </div>
               </div>
             ))}
