@@ -211,7 +211,7 @@ function AppContent({ collapsed, setCollapsed }) {
                   />
 
                   <Route
-                    path="/transporation"
+                    path="/transportation"
                     element={
                       <ProtectedRoute>
                         <Transportation />
