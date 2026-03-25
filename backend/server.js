@@ -20,6 +20,8 @@ import orderRoutes from "./routes/order.route.js";
 import emailRoutes from "./routes/email.js";
 import dashboardRoutes from "./routes/dashboard.route.js";
 import transportationRoutes from "./routes/transportation.js";
+import uploadRoutes from "./routes/upload.route.js";
+
 
 
 // Ensure .env is loaded from the backend directory regardless of CWD
@@ -38,11 +40,25 @@ app.use(morgan("dev"));
 
 // Security middlewares
 app.use(helmet());
-// CORS: allow origin from env or allow any in development
-const allowedOrigin = process.env.FRONTEND_ORIGIN || "http://localhost:5173";
+// CORS: support one or many allowed frontend origins via env.
+// FRONTEND_ORIGINS takes comma-separated URLs; FRONTEND_ORIGIN is kept for backward compatibility.
+const allowedOrigins = (
+  process.env.FRONTEND_ORIGINS ||
+  process.env.FRONTEND_ORIGIN ||
+  "http://localhost:5173"
+)
+.split(",")
+.map((origin) => origin.trim())
+.filter(Boolean);
+
 app.use(
   cors({
-    origin: allowedOrigin,
+    origin: (origin, callback) => {
+      // Allow non-browser requests (no Origin header)
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes(origin)) return callback(null, true);
+      return callback(new Error(`CORS blocked for origin: ${origin}`));
+    },
     credentials: true,
   })
 );
@@ -105,6 +121,7 @@ app.use("/api/orders", orderRoutes);
 app.use("/api/email", emailRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/transportation", transportationRoutes);
+app.use("/api/upload", uploadRoutes);
 
 // Root + health
 app.get("/", (req, res) => res.send("API is running"));

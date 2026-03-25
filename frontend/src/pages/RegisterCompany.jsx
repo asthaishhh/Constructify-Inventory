@@ -80,6 +80,7 @@ export default function RegisterCompany() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [logoFile, setLogoFile] = useState(null);
 
   /* Load existing profile on mount */
   useEffect(() => {
@@ -141,45 +142,61 @@ export default function RegisterCompany() {
     },
   });
 
-  const handleLogoChange = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+ const handleLogoChange = (e) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
 
-    const allowed = ["image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp", "image/svg+xml"];
-    if (!allowed.includes(file.type)) {
-      setErrors((prev) => ({
-        ...prev,
-        logo: "Please upload a valid image file (JPG, PNG, GIF, WebP or SVG).",
-      }));
-      return;
-    }
-    if (file.size > 2 * 1024 * 1024) {
-      setErrors((prev) => ({
-        ...prev,
-        logo: "Image must be smaller than 2 MB.",
-      }));
-      return;
-    }
+  const allowed = [
+    "image/jpeg",
+    "image/jpg",
+    "image/png",
+    "image/gif",
+    "image/webp",
+    "image/svg+xml",
+  ];
 
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const dataUrl = ev.target.result;
-      setLogoPreview(dataUrl);
-      setForm((prev) => ({ ...prev, logo: dataUrl }));
-      setLogoFileName(file.name);
-      setErrors((prev) => ({ ...prev, logo: "" }));
-      setSaved(false);
-    };
-    reader.readAsDataURL(file);
-  };
+  if (!allowed.includes(file.type)) {
+    setErrors((prev) => ({
+      ...prev,
+      logo: "Please upload a valid image file (JPG, PNG, GIF, WebP or SVG).",
+    }));
+    return;
+  }
+
+  if (file.size > 2 * 1024 * 1024) {
+    setErrors((prev) => ({
+      ...prev,
+      logo: "Image must be smaller than 2 MB.",
+    }));
+    return;
+  }
+
+  const localPreview = URL.createObjectURL(file);
+
+  setLogoPreview(localPreview);
+  setLogoFile(file);
+  setLogoFileName(file.name);
+
+  // keep form.logo empty for now; backend will return Cloudinary URL
+  setForm((prev) => ({ ...prev, logo: "" }));
+
+  setErrors((prev) => ({ ...prev, logo: "" }));
+  setSaved(false);
+};
 
   const removeLogo = () => {
-    setLogoPreview("");
-    setLogoFileName("");
-    setForm((prev) => ({ ...prev, logo: "" }));
-    if (fileInputRef.current) fileInputRef.current.value = "";
-    setSaved(false);
-  };
+  if (logoPreview && logoPreview.startsWith("blob:")) {
+    URL.revokeObjectURL(logoPreview);
+  }
+
+  setLogoPreview("");
+  setLogoFile(null);
+  setLogoFileName("");
+  setForm((prev) => ({ ...prev, logo: "" }));
+
+  if (fileInputRef.current) fileInputRef.current.value = "";
+  setSaved(false);
+};
 
   const validate = () => {
     const newErrors = {};
@@ -210,61 +227,92 @@ export default function RegisterCompany() {
     return newErrors;
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    const validationErrors = validate();
-    if (Object.keys(validationErrors).length > 0) {
-      setErrors(validationErrors);
-      return;
+const handleSubmit = async (e) => {
+  e.preventDefault();
+
+  const validationErrors = validate();
+  if (Object.keys(validationErrors).length > 0) {
+    setErrors(validationErrors);
+    return;
+  }
+
+  setIsSubmitting(true);
+
+  try {
+    const formData = new FormData();
+    formData.append("companyName", form.companyName);
+    formData.append("companyTagline", form.companyTagline);
+    formData.append("ownerName", form.ownerName);
+    formData.append("gstIn", form.gstIn);
+    formData.append("address", form.address);
+    formData.append("phone", form.phone);
+    formData.append("email", form.email);
+    formData.append("password", form.password);
+
+    if (logoFile) {
+      formData.append("logo", logoFile);
     }
 
-    // Attempt signup on backend to create admin user (password will be hashed server-side)
-    (async () => {
-      setIsSubmitting(true);
-      try {
-        const apiBase = import.meta.env.VITE_API_BASE || "http://localhost:5000";
-        const resp = await fetch(`${apiBase}/api/auth/register-company`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            companyName: form.companyName,
-            companyTagline: form.companyTagline,
-            logo: form.logo,
-            ownerName: form.ownerName,
-            gstIn: form.gstIn,
-            address: form.address,
-            phone: form.phone,
-            email: form.email,
-            password: form.password,
-          }),
-        });
+    const { data } = await axios.post("/api/auth/register-company", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
 
-        const data = await resp.json();
-        if (!resp.ok) {
-          // server-side validation error
-          const message = data?.message || (data?.errors ? data.errors.join(", ") : "Signup failed");
-          setErrors((prev) => ({ ...prev, form: message }));
-          setIsSubmitting(false);
-          return;
-        }
+    // backend should return uploaded Cloudinary URL as companyProfile.logo or logo
+    const savedLogo =
+      data?.companyProfile?.logo || data?.logo || "";
 
-        // Do NOT auto-login. Save company profile locally (without password)
-        const { password: _p, confirmPassword: _c, ...profileToSave } = form;
-        saveCompanyProfile(profileToSave, { email: profileToSave.email });
+    const profileToSave = {
+      companyName: form.companyName,
+      companyTagline: form.companyTagline,
+      logo: savedLogo,
+      ownerName: form.ownerName,
+      gstIn: form.gstIn,
+      address: form.address,
+      phone: form.phone,
+      email: form.email,
+    };
 
-        setSaved(true);
-        setIsSubmitting(false);
-        // Redirect to login so the user can sign in with the registered email/password
-        setTimeout(() => {
-          navigate("/login", { state: { email: form.email } });
-        }, 800);
-      } catch (err) {
-        console.error(err);
-        setErrors((prev) => ({ ...prev, form: "Network or server error during signup" }));
-        setIsSubmitting(false);
-      }
-    })();
+    saveCompanyProfile(profileToSave, { email: profileToSave.email });
+
+    setForm((prev) => ({
+      ...prev,
+      logo: savedLogo,
+      password: "",
+      confirmPassword: "",
+    }));
+
+    if (savedLogo) {
+      setLogoPreview(savedLogo);
+      setLogoFileName("Uploaded logo");
+    }
+
+    setSaved(true);
+
+    setTimeout(() => {
+      navigate("/login", { state: { email: form.email } });
+    }, 800);
+  } catch (err) {
+    console.error(err);
+    const message =
+      err?.response?.data?.message ||
+      (Array.isArray(err?.response?.data?.errors)
+        ? err.response.data.errors.join(", ")
+        : "Network or server error during signup");
+
+    setErrors((prev) => ({ ...prev, form: message }));
+  } finally {
+    setIsSubmitting(false);
+  }
+};
+  useEffect(() => {
+  return () => {
+    if (logoPreview && logoPreview.startsWith("blob:")) {
+      URL.revokeObjectURL(logoPreview);
+    }
   };
+}, [logoPreview]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-6">
