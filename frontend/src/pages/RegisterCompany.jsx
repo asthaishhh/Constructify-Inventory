@@ -15,6 +15,7 @@ import {
   EyeOff,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import axios from "../utils/axiosConfig";
 import { loadCompanyProfile, saveCompanyProfile } from "../utils/companyProfile";
 
 /* ── Password strength ── */
@@ -82,15 +83,52 @@ export default function RegisterCompany() {
 
   /* Load existing profile on mount */
   useEffect(() => {
-    const existing = loadCompanyProfile();
-    const hasData = Object.values(existing).some((v) => v && v.length > 0);
-    if (hasData) {
-      setForm(existing);
-      if (existing.logo) {
-        setLogoPreview(existing.logo);
-        setLogoFileName("Current logo");
+    const bootstrapCompanyProfile = async () => {
+      let currentUserEmail = "";
+      try {
+        const user = JSON.parse(localStorage.getItem("user") || "{}");
+        currentUserEmail = String(user?.email || "").toLowerCase().trim();
+      } catch {
+        currentUserEmail = "";
       }
-    }
+
+      const token = localStorage.getItem("token");
+
+      if (token) {
+        try {
+          const res = await axios.get("/api/auth/company-profile");
+          const apiProfile = res?.data?.companyProfile || {};
+          const merged = {
+            ...INITIAL_STATE,
+            ...apiProfile,
+            password: "",
+            confirmPassword: "",
+          };
+
+          setForm(merged);
+          if (merged.logo) {
+            setLogoPreview(merged.logo);
+            setLogoFileName("Current logo");
+          }
+          saveCompanyProfile(merged, { email: merged.email || currentUserEmail });
+          return;
+        } catch (err) {
+          console.warn("Could not fetch company profile from API:", err?.response?.data || err.message);
+        }
+      }
+
+      const existing = loadCompanyProfile({ email: currentUserEmail });
+      const hasData = Object.values(existing).some((v) => v && String(v).length > 0);
+      if (hasData) {
+        setForm((prev) => ({ ...prev, ...existing }));
+        if (existing.logo) {
+          setLogoPreview(existing.logo);
+          setLogoFileName("Current logo");
+        }
+      }
+    };
+
+    bootstrapCompanyProfile();
   }, []);
 
   /* ── helpers ── */
@@ -212,7 +250,7 @@ export default function RegisterCompany() {
 
         // Do NOT auto-login. Save company profile locally (without password)
         const { password: _p, confirmPassword: _c, ...profileToSave } = form;
-        saveCompanyProfile(profileToSave);
+        saveCompanyProfile(profileToSave, { email: profileToSave.email });
 
         setSaved(true);
         setIsSubmitting(false);
