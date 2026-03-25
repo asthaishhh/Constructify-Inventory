@@ -251,6 +251,7 @@ export default function InvoiceGenerator() {
     });
     return {
       ...inv,
+      id: inv.id || inv._id || null,
       client: inv.client || (inv.customer && inv.customer.name) || "",
       clientEmail: inv.clientEmail || (inv.customer && inv.customer.email) || "",
       clientPhone: inv.clientPhone || (inv.customer && inv.customer.phone) || "",
@@ -471,13 +472,19 @@ const fetchInvoices = async () => {
     };
     try {
       let res;
-      if (form.id) {
+      const currentInvoiceId = form.id || form._id;
+
+      if (currentInvoiceId) {
         res = await axios.put(
-          `/api/invoices/${form.id}`,
+          `/api/invoices/${currentInvoiceId}`,
           invoiceData,
         );
         const normalized = normalizeInvoice(res.data);
-        setInvoices((prev) => prev.map((inv) => (inv._id === form.id ? normalized : inv)));
+        setInvoices((prev) =>
+          prev.map((inv) =>
+            String(inv._id || inv.id) === String(currentInvoiceId) ? normalized : inv,
+          ),
+        );
       } else {
         res = await axios.post('/api/invoices', invoiceData);
         const normalized = normalizeInvoice(res.data);
@@ -535,7 +542,15 @@ const fetchInvoices = async () => {
   };
   const handleEdit = (invoice) => {
     console.log("Bill.jsx: edit invoice", invoice && invoice._id);
-    setForm(invoice);
+    setForm((prev) => ({
+      ...prev,
+      ...invoice,
+      id: invoice?.id || invoice?._id || null,
+      customerId:
+        invoice?.customerId ||
+        (invoice?.customer && (invoice.customer._id || invoice.customer)) ||
+        "",
+    }));
     setShowForm(true);
   };
   const handleDelete = async (id) => {
