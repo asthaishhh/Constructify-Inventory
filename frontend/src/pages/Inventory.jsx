@@ -13,6 +13,7 @@ const MATERIAL_UNIT_OPTIONS = ["kg", "ton", "bags", "pieces", "m3"];
 export default function Inventory() {
   const navigate = useNavigate();
   const NOTIF_KEY = "appNotifications";
+  const DETECTOR_URL = "https://constructify-detection-model.onrender.com/detect";
   const [materials, setMaterials] = useState([]);
   const [search, setSearch] = useState("");
   const [showModal, setShowModal] = useState(false);
@@ -25,6 +26,12 @@ export default function Inventory() {
   const [showCriticalPopup, setShowCriticalPopup] = useState(false);
   const [criticalPopupItems, setCriticalPopupItems] = useState([]);
   const prevCriticalSignaturesRef = useRef(new Set());
+  const detectionFileInputRef = useRef(null);
+  const [detectionSource, setDetectionSource] = useState("");
+  const [detectionFile, setDetectionFile] = useState(null);
+  const [detectionLoading, setDetectionLoading] = useState(false);
+  const [detectionError, setDetectionError] = useState("");
+  const [detectionResult, setDetectionResult] = useState(null);
 
   const API_URL = (import.meta.env.VITE_API_URL || "").replace(/\/api\/?$/, "");
 
@@ -65,6 +72,96 @@ export default function Inventory() {
     window.addEventListener("inventory:updated", onInventoryUpdated);
     return () => window.removeEventListener("inventory:updated", onInventoryUpdated);
   }, []);
+
+  const handleDetectionFileChange = (e) => {
+    const file = e.target.files?.[0] || null;
+    setDetectionFile(file);
+    setDetectionError("");
+    if (file) setDetectionSource("");
+  };
+
+  const handleRunDetection = async () => {
+    if (!detectionFile && !detectionSource.trim()) {
+      setDetectionError("Add an ESP32-CAM image URL or upload a snapshot first.");
+      return;
+    }
+
+    setDetectionLoading(true);
+    setDetectionError("");
+    setDetectionResult(null);
+
+    try {
+      let response;
+
+      if (detectionFile) {
+        const formData = new FormData();
+        formData.append("file", detectionFile);
+        formData.append("image", detectionFile);
+        response = await fetch(DETECTOR_URL, {
+          method: "POST",
+          body: formData,
+        });
+      } else {
+        const imageUrl = detectionSource.trim();
+        const imageResponse = await fetch(imageUrl);
+        if (!imageResponse.ok) {
+          throw new Error(`Unable to fetch image from URL (${imageResponse.status})`);
+        }
+
+        const imageBlob = await imageResponse.blob();
+        const inferredName = imageUrl.split("/").pop() || "esp32-cam.jpg";
+        const imageFile = new File([imageBlob], inferredName, { type: imageBlob.type || "image/jpeg" });
+
+        const formData = new FormData();
+        formData.append("file", imageFile);
+        formData.append("image", imageFile);
+        formData.append("imageUrl", imageUrl);
+
+        response = await fetch(DETECTOR_URL, {
+          method: "POST",
+          body: formData,
+        });
+      }
+
+      const contentType = response.headers.get("content-type") || "";
+      const payload = contentType.includes("application/json")
+        ? await response.json()
+        : { raw: await response.text() };
+
+      if (!response.ok) {
+        throw new Error(payload?.message || payload?.error || `Detection failed (${response.status})`);
+      }
+
+      setDetectionResult(payload);
+    } catch (error) {
+      setDetectionError(error?.message || "Failed to run detection.");
+    } finally {
+      setDetectionLoading(false);
+    }
+  };
+
+  const detectionSummary = (() => {
+    const payload = detectionResult;
+    if (!payload) return null;
+
+    const detections =
+      payload.detections ||
+      payload.predictions ||
+      payload.objects ||
+      payload.results ||
+      payload.data ||
+      null;
+
+    const count = Array.isArray(detections)
+      ? detections.length
+      : Number(payload.count ?? payload.total ?? payload.numDetections ?? 0) || 0;
+
+    const firstLabel = Array.isArray(detections) && detections.length > 0
+      ? String(detections[0]?.class || detections[0]?.label || detections[0]?.name || detections[0]?.object || "").trim()
+      : "";
+
+    return { count, firstLabel };
+  })();
 
   useEffect(() => {
     const criticalItems = materials.filter((m) => {
@@ -317,6 +414,111 @@ export default function Inventory() {
           <p className="text-xs sm:text-sm text-indigo-700 dark:text-indigo-300 font-medium">
             Inventory additions are managed through My Orders completion. Use Orders page to procure and refill stock.
           </p>
+        </section>
+
+        <section className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm p-4 sm:p-5 mb-4 sm:mb-6">
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <div>
+                <h2 className="text-base sm:text-lg font-bold text-gray-900 dark:text-white">ESP32-CAM Detection</h2>
+                <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+                  Send an image from ESP32-CAM to the hosted YOLO model and inspect the response here.
+                </p>
+              </div>
+              <div className="text-xs text-gray-400 dark:text-gray-500 break-all sm:text-right">
+                {DETECTOR_URL}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5">
+                    ESP32 Image URL
+                  </label>
+                  <input
+                    type="url"
+                    value={detectionSource}
+                    onChange={(e) => {
+                      setDetectionSource(e.target.value);
+                      if (e.target.value.trim()) setDetectionFile(null);
+                    }}
+                    placeholder="http://192.168.x.x/capture or a hosted image URL"
+                    className={inputCls}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5">
+                    Upload Snapshot
+                  </label>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => detectionFileInputRef.current?.click()}
+                      className="px-4 py-2.5 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-xl font-semibold text-sm transition-all"
+                    >
+                      Choose File
+                    </button>
+                    <div className="flex-1 px-3 py-2.5 rounded-xl border border-dashed border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/40 text-xs text-gray-500 dark:text-gray-400 truncate flex items-center">
+                      {detectionFile ? detectionFile.name : "No file selected"}
+                    </div>
+                    <input
+                      ref={detectionFileInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleDetectionFileChange}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-end">
+                <button
+                  type="button"
+                  onClick={handleRunDetection}
+                  disabled={detectionLoading}
+                  className="w-full px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:opacity-60 text-white rounded-xl font-semibold text-sm transition-all"
+                >
+                  {detectionLoading ? "Running detection..." : "Run Detection"}
+                </button>
+              </div>
+            </div>
+
+            {detectionError && (
+              <div className="rounded-xl border border-red-200 bg-red-50 text-red-700 dark:bg-red-900/20 dark:border-red-800 dark:text-red-300 px-4 py-3 text-sm">
+                {detectionError}
+              </div>
+            )}
+
+            {detectionResult && (
+              <div className="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-3">
+                <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-2">Summary</p>
+                  <div className="space-y-2">
+                    <div>
+                      <p className="text-xs text-gray-400 dark:text-gray-500">Detections</p>
+                      <p className="text-2xl font-bold text-gray-900 dark:text-white">{detectionSummary?.count ?? 0}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-400 dark:text-gray-500">Top label</p>
+                      <p className="text-sm font-semibold text-gray-800 dark:text-gray-200 break-words">
+                        {detectionSummary?.firstLabel || "N/A"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900/40 p-4 overflow-auto">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-2">Model Response</p>
+                  <pre className="text-xs sm:text-sm text-gray-700 dark:text-gray-200 whitespace-pre-wrap break-words">
+                    {JSON.stringify(detectionResult, null, 2)}
+                  </pre>
+                </div>
+              </div>
+            )}
+          </div>
         </section>
 
         {/* ── Stats Cards ── */}

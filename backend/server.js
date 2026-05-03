@@ -21,6 +21,7 @@ import emailRoutes from "./routes/email.js";
 import dashboardRoutes from "./routes/dashboard.route.js";
 import transportationRoutes from "./routes/transportation.js";
 import uploadRoutes from "./routes/upload.route.js";
+import detectionRoutes from "./routes/detection.route.js";
 
 
 
@@ -122,6 +123,7 @@ app.use("/api/email", emailRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/transportation", transportationRoutes);
 app.use("/api/upload", uploadRoutes);
+app.use("/api/detections", detectionRoutes);
 
 // Root + health
 app.get("/", (req, res) => res.send("API is running"));
