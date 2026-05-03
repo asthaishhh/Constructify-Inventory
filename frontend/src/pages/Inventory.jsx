@@ -14,6 +14,7 @@ export default function Inventory() {
   const navigate = useNavigate();
   const NOTIF_KEY = "appNotifications";
   const DETECTOR_URL = "https://constructify-detection-model.onrender.com/detect";
+  const INVENTORY_REFRESH_INTERVAL_MS = 15000;
   const [materials, setMaterials] = useState([]);
   const [search, setSearch] = useState("");
   const [showModal, setShowModal] = useState(false);
@@ -34,6 +35,8 @@ export default function Inventory() {
   const [detectionResult, setDetectionResult] = useState(null);
   const [detectionRecords, setDetectionRecords] = useState([]);
   const [detectionsLoading, setDetectionsLoading] = useState(false);
+  const [captureRequest, setCaptureRequest] = useState(null);
+  const [captureStatus, setCaptureStatus] = useState("");
 
   const API_URL = (import.meta.env.VITE_API_URL || "").replace(/\/api\/?$/, "");
 
@@ -58,15 +61,34 @@ export default function Inventory() {
     }
   };
 
+  const fetchCaptureRequest = async (requestId) => {
+    const res = await axios.get(`${API_URL}/api/detections/requests/${requestId}`);
+    return res.data?.request || null;
+  };
+
+  const refreshInventoryView = async () => {
+    await Promise.all([fetchMaterials(), fetchDetections()]);
+  };
+
   const waitForDetectionRecord = async (requestId, timeoutMs = 45000) => {
     const startedAt = Date.now();
     while (Date.now() - startedAt < timeoutMs) {
-      const res = await axios.get(`${API_URL}/api/detections/latest`);
-      const latest = res.data?.record;
-      if (latest && String(latest.requestId || "") === String(requestId)) {
-        setDetectionResult(latest);
-        await fetchDetections();
-        return latest;
+      const request = await fetchCaptureRequest(requestId);
+      setCaptureRequest(request);
+      setCaptureStatus(request?.status || "pending");
+
+      const resolvedRecord = request?.record || request?.completedRecordId || null;
+      if ((request?.status === "resolved" || request?.status === "completed") && resolvedRecord) {
+        setDetectionResult(resolvedRecord);
+        await refreshInventoryView();
+        window.dispatchEvent(new CustomEvent("inventory:updated", {
+          detail: { source: "esp-detection", requestId },
+        }));
+        return resolvedRecord;
+      }
+
+      if (request?.status === "failed") {
+        throw new Error("ESP request failed before completing the capture.");
       }
       await new Promise((resolve) => setTimeout(resolve, 2500));
     }
@@ -88,6 +110,8 @@ export default function Inventory() {
 
       setDetectionError("");
       setDetectionResult(null);
+      setCaptureRequest(resp.data?.request || null);
+      setCaptureStatus(resp.data?.request?.status || "pending");
       await waitForDetectionRecord(requestId);
     } catch (err) {
       console.error("ESP trigger failed:", err.message);
@@ -97,8 +121,11 @@ export default function Inventory() {
     }
   };
 
-  useEffect(() => { fetchMaterials(); }, []);
-  useEffect(() => { fetchDetections(); }, []);
+  useEffect(() => {
+    refreshInventoryView();
+    const intervalId = setInterval(refreshInventoryView, INVENTORY_REFRESH_INTERVAL_MS);
+    return () => clearInterval(intervalId);
+  }, []);
 
   useEffect(() => {
     try {
@@ -111,7 +138,7 @@ export default function Inventory() {
 
   useEffect(() => {
     const onInventoryUpdated = () => {
-      fetchMaterials();
+      refreshInventoryView();
       try {
         const existing = JSON.parse(localStorage.getItem(NOTIF_KEY) || "[]");
         setNotifications(Array.isArray(existing) ? existing : []);
@@ -488,6 +515,12 @@ export default function Inventory() {
                 {detectionsLoading ? "Requesting ESP capture..." : "Detect Now (ESP)"}
               </button>
             </div>
+
+            {captureRequest && (
+              <div className="rounded-xl border border-blue-200 bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:border-blue-800 dark:text-blue-300 px-4 py-3 text-sm">
+                Request {captureRequest._id || captureRequest.id} is {captureStatus || captureRequest.status || "pending"}.
+              </div>
+            )}
 
             {detectionError && (
               <div className="rounded-xl border border-red-200 bg-red-50 text-red-700 dark:bg-red-900/20 dark:border-red-800 dark:text-red-300 px-4 py-3 text-sm">

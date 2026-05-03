@@ -3,6 +3,7 @@ import {
   reportRecord,
   triggerEsp,
   nextRequest,
+  getRequestById,
   listRecords,
   latestRecord,
 } from "../controllers/detection.controller.js";
@@ -17,6 +18,9 @@ router.post("/trigger-esp", triggerEsp);
 
 // ESP polls this to see whether it should capture a new image
 router.get("/next-request", nextRequest);
+
+// Frontend can inspect a specific request and its resolved record
+router.get("/requests/:requestId", getRequestById);
 
 // List recent records
 router.get("/", listRecords);

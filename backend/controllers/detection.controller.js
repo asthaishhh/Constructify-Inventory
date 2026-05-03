@@ -42,6 +42,20 @@ async function runDetectorWithImage(imageBuffer, filename = "image.jpg") {
   }
 }
 
+function serializeCaptureRequest(request) {
+  if (!request) return null;
+
+  const record = request.completedRecordId && typeof request.completedRecordId === "object"
+    ? request.completedRecordId
+    : null;
+
+  return {
+    ...request,
+    record,
+    isResolved: request.status === "resolved" || request.status === "completed",
+  };
+}
+
 export async function reportRecord(req, res, next) {
   try {
     // Expecting { rawWeight, detectedCount, detectorResponse?, espResponse?, source? }
@@ -71,8 +85,9 @@ export async function reportRecord(req, res, next) {
 
     if (requestId && /^[a-fA-F0-9]{24}$/.test(String(requestId))) {
       await CaptureRequest.findByIdAndUpdate(requestId, {
-        status: "completed",
+        status: "resolved",
         completedAt: new Date(),
+        resolvedAt: new Date(),
         completedRecordId: record._id,
       });
     }
@@ -86,7 +101,47 @@ export async function reportRecord(req, res, next) {
 // Queue a capture request on Render so the ESP can poll and capture a fresh image.
 export async function triggerEsp(req, res, next) {
   try {
+    // Support two modes:
+    // 1) If caller provides `image` (base64) or `imageUrl`, run detector immediately and save a DetectionRecord.
+    // 2) Otherwise, create a queued CaptureRequest (ESP will poll /next-request).
     const deviceId = String(req.body?.deviceId || req.query?.deviceId || "esp32cam-1");
+    const { image, imageUrl } = req.body || {};
+
+    if (image || imageUrl) {
+      // Run detector immediately using provided image (base64) or fetch imageUrl
+      let imageBuffer = null;
+      try {
+        if (image) {
+          imageBuffer = Buffer.from(image, "base64");
+        } else if (imageUrl) {
+          const resp = await fetch(String(imageUrl));
+          if (!resp.ok) throw new Error(`Failed to fetch imageUrl: ${resp.status}`);
+          const arr = await resp.arrayBuffer();
+          imageBuffer = Buffer.from(arr);
+        }
+      } catch (err) {
+        return res.status(400).json({ success: false, error: `Invalid image/imageUrl: ${err.message}` });
+      }
+
+      const detectorPayload = imageBuffer ? await runDetectorWithImage(imageBuffer, "trigger.jpg") : null;
+      const numericDetected = Number(detectorPayload?.count ?? 0) || undefined;
+
+      const record = new DetectionRecord({
+        rawWeight: undefined,
+        detectedCount: numericDetected,
+        calculatedCount: undefined,
+        brickWeightUsed: Number(process.env.BRICK_WEIGHT ?? BRICK_WEIGHT) || BRICK_WEIGHT,
+        detectorResponse: detectorPayload,
+        espResponse: null,
+        requestId: null,
+        source: "trigger",
+      });
+
+      await record.save();
+      return res.status(201).json({ success: true, record, detectorPayload });
+    }
+
+    // No image provided: queue a CaptureRequest for ESP to pick up
     const request = await CaptureRequest.create({ deviceId, status: "pending" });
     return res.status(201).json({ success: true, request });
   } catch (err) {
@@ -117,6 +172,22 @@ export async function nextRequest(req, res, next) {
         requestedAt: request.requestedAt,
       },
     });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getRequestById(req, res, next) {
+  try {
+    const request = await CaptureRequest.findById(req.params.requestId)
+      .populate("completedRecordId")
+      .lean();
+
+    if (!request) {
+      return res.status(404).json({ success: false, message: "Capture request not found" });
+    }
+
+    return res.json({ success: true, request: serializeCaptureRequest(request) });
   } catch (err) {
     next(err);
   }
