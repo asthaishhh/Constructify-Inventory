@@ -3,6 +3,7 @@ import Invoice from "../models/Invoice.js";
 import Material from "../models/Material.js";
 import Order from "../models/order.js";
 import Customer from "../models/Customer.js";
+import Company from "../models/Company.js";
 import PDFDocument from "pdfkit";
 import Counter from "../models/Counter.js";
 import SVGtoPDF from "svg-to-pdfkit";
@@ -552,6 +553,10 @@ export const generateInvoicePdfBuffer = async (invoiceId, rawCompanyProfile = {}
   const invoice = await Invoice.findOne(invoiceFilter).populate("customer").populate("materials.material");
   if (!invoice) return { pdfBuffer: null, invoice: null };
 
+  const companyDoc = tenantCompanyId
+    ? await Company.findById(tenantCompanyId).lean()
+    : null;
+
   const clientName = invoice.client || (invoice.customer && invoice.customer.name) || "";
   const clientAddress = invoice.clientAddress || (invoice.customer && invoice.customer.address) || "";
   const clientEmail = invoice.clientEmail || (invoice.customer && invoice.customer.email) || "";
@@ -608,7 +613,11 @@ export const generateInvoicePdfBuffer = async (invoiceId, rawCompanyProfile = {}
   const dueDate = new Date(); dueDate.setDate(dueDate.getDate() + 30);
   const formattedDue = dueDate.toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata", day: '2-digit', month: 'short', year:'numeric' });
 
-  const companyProfile = normalizeCompanyProfile(rawCompanyProfile);
+  const companyProfile = normalizeCompanyProfile({
+    ...companyDoc,
+    ...rawCompanyProfile,
+    logo: rawCompanyProfile?.logo || companyDoc?.logo || "",
+  });
   const { primary: companyNamePrimary, secondary: companyNameSecondary } = splitCompanyName(companyProfile.companyName);
   const logoAsset = await resolveLogoAsset(companyProfile.logo);
 

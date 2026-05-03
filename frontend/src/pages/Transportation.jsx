@@ -109,8 +109,8 @@ export default function Transportation() {
     try {
       setLoading(true);
       const [driversRes, vehiclesRes] = await Promise.all([
-        axios.get("/api/transportation/drivers"),
-        axios.get("/api/transportation/vehicles"),
+        axios.get("/transportation/drivers"),
+        axios.get("/transportation/vehicles"),
       ]);
 
       const driverPayload = Array.isArray(driversRes.data)
@@ -246,7 +246,7 @@ export default function Transportation() {
         const updated = normalizeDriver(res.data?.driver || res.data);
         setDrivers((prev) => prev.map((d) => (d._id === editingId ? updated : d)));
       } else {
-        const res = await axios.post("/api/transportation/drivers", payload);
+        const res = await axios.post("/transportation/drivers", payload);
         const created = normalizeDriver(res.data?.driver || res.data);
         setDrivers((prev) => [created, ...prev]);
       }
@@ -276,7 +276,7 @@ export default function Transportation() {
         const updated = normalizeVehicle(res.data?.vehicle || res.data);
         setVehicles((prev) => prev.map((v) => (v._id === editingId ? updated : v)));
       } else {
-        const res = await axios.post("/api/transportation/vehicles", payload);
+        const res = await axios.post("/transportation/vehicles", payload);
         const created = normalizeVehicle(res.data?.vehicle || res.data);
         setVehicles((prev) => [created, ...prev]);
       }

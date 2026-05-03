@@ -26,13 +26,13 @@ export default function Inventory() {
   const [criticalPopupItems, setCriticalPopupItems] = useState([]);
   const prevCriticalSignaturesRef = useRef(new Set());
 
-  const API_URL = import.meta.env.VITE_API_URL || "";
+  const API_URL = (import.meta.env.VITE_API_URL || "").replace(/\/api\/?$/, "");
 
   const fetchMaterials = async () => {
     setLoading(true);
     try {
       const res = await axios.get(`${API_URL}/api/materials`);
-      setMaterials(res.data);
+      setMaterials(Array.isArray(res.data) ? res.data : res.data?.materials || []);
     } catch (err) {
       console.error("Error fetching materials:", err);
     } finally {

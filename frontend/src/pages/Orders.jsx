@@ -36,7 +36,7 @@ export default function TraderOrdersDashboard() {
     setOrderForm((prev) => ({ ...prev, type: activeTab }));
   }, [activeTab]);
 
-  const API_URL = import.meta.env.VITE_API_URL || "";
+  const API_URL = (import.meta.env.VITE_API_URL || "").replace(/\/api\/?$/, "");
 
   const fetchOrders = async () => {
     try {
@@ -107,7 +107,7 @@ export default function TraderOrdersDashboard() {
   const fetchCustomers = async () => {
     try {
       const res = await axios.get(`${API_URL}/api/customers`);
-      setCustomers(Array.isArray(res.data) ? res.data : []);
+      setCustomers(Array.isArray(res.data) ? res.data : res.data?.customers || []);
     } catch (err) {
       console.error("Failed to fetch customers:", err);
     }

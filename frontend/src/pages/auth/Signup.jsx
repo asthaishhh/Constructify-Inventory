@@ -278,7 +278,7 @@ export default function Signup() {
   const [modal,    setModal]    = useState(null); // "terms" | "privacy" | null
 
   const navigate = useNavigate();
-  const API_URL  = import.meta.env.VITE_API_URL || "";
+  const API_URL  = (import.meta.env.VITE_API_URL || "").replace(/\/api\/?$/, "");
   const [companyAdminEmail, setCompanyAdminEmail] = useState("");
 
   const strength    = getStrength(password);
@@ -306,7 +306,8 @@ export default function Signup() {
 
     setLoading(true);
     try {
-      const res  = await fetch(`${API_URL}/api/auth/signup`, {
+      const endpoint = API_URL ? `${API_URL}/api/auth/signup` : "/api/auth/signup";
+      const res  = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, email: normalizedEmail, password, role }),

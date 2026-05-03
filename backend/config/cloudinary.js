@@ -19,3 +19,5 @@ export const uploadToCloudinary = (fileBuffer, folder = "constructify/company-lo
 
     streamifier.createReadStream(fileBuffer).pipe(stream);
   });
+
+export default cloudinary;

@@ -1,6 +1,7 @@
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
 import Company from "../models/Company.js";
+import uploadToCloudinary from "../utils/uploadToCloudinary.js";
 
 const createSlug = (value = "") =>
   String(value)
@@ -175,7 +176,6 @@ export const registerCompany = async (req, res) => {
     const {
       companyName,
       companyTagline,
-      logo,
       ownerName,
       gstIn,
       address,
@@ -217,12 +217,24 @@ export const registerCompany = async (req, res) => {
       slugCounter += 1;
     }
 
+    // Handle logo upload to Cloudinary if provided
+    let logoUrl = "";
+    if (req.file) {
+      try {
+        const cloudinaryResult = await uploadToCloudinary(req.file.buffer, "constructify_logos");
+        logoUrl = cloudinaryResult.secure_url || "";
+      } catch (uploadErr) {
+        console.error("Cloudinary upload error:", uploadErr);
+        // Continue without logo if upload fails
+      }
+    }
+
     const company = await Company.create({
       name: String(companyName).trim(),
       ownerName: String(ownerName).trim(),
       slug,
       companyTagline: String(companyTagline || "").trim(),
-      logo: String(logo || "").trim(),
+      logo: logoUrl,
       gstIn: String(gstIn || "").trim(),
       address: String(address || "").trim(),
       phone: String(phone || "").trim(),
@@ -246,6 +258,7 @@ export const registerCompany = async (req, res) => {
         id: company._id,
         name: company.name,
         slug: company.slug,
+        logo: logoUrl,
       },
       user: {
         id: adminUser._id,

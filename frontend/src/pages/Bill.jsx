@@ -191,7 +191,7 @@ export default function InvoiceGenerator() {
   const [showCriticalPopup, setShowCriticalPopup] = useState(false);
   const [criticalPopupItems, setCriticalPopupItems] = useState([]);
 
-  const API_URL = import.meta.env.VITE_API_URL || "";
+  const API_URL = (import.meta.env.VITE_API_URL || "").replace(/\/api\/?$/, "");
 
   // Helper: format any date/string to IST human-friendly string
   const formatToIST = (value) => {
@@ -266,8 +266,9 @@ export default function InvoiceGenerator() {
     console.log("Bill.jsx: fetching customers...");
     try {
       const res = await axios.get('/api/customers');
-      console.log("Bill.jsx: customers fetched", res.data?.length);
-      setCustomers(res.data);
+      const customersData = Array.isArray(res.data) ? res.data : res.data?.customers || [];
+      console.log("Bill.jsx: customers fetched", customersData?.length);
+      setCustomers(customersData);
     } catch (err) {
       console.error("Error fetching customers:", err);
     }
@@ -279,8 +280,9 @@ export default function InvoiceGenerator() {
     console.log("Bill.jsx: fetching materials...");
     try {
       const res = await axios.get('/api/materials');
-      console.log("Bill.jsx: materials fetched", res.data?.length);
-      setMaterials(res.data);
+      const materialsData = Array.isArray(res.data) ? res.data : res.data?.materials || [];
+      console.log("Bill.jsx: materials fetched", materialsData?.length);
+      setMaterials(materialsData);
     } catch (err) {
       console.error("Error fetching materials:", err);
     }

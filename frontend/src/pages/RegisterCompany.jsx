@@ -253,15 +253,11 @@ const handleSubmit = async (e) => {
       formData.append("logo", logoFile);
     }
 
-    const { data } = await axios.post("/api/auth/register-company", formData, {
-      headers: {
-        "Content-Type": "multipart/form-data",
-      },
-    });
+    const { data } = await axios.post("/api/auth/register-company", formData);
 
     // backend should return uploaded Cloudinary URL as companyProfile.logo or logo
     const savedLogo =
-      data?.companyProfile?.logo || data?.logo || "";
+      data?.company?.logo || data?.logo || "";
 
     const profileToSave = {
       companyName: form.companyName,

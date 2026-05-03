@@ -62,7 +62,7 @@ export default function Login() {
   const [infoMessage, setInfoMessage] = useState("");
 
   const navigate = useNavigate();
-  const API_URL  = import.meta.env.VITE_API_URL || "";
+  const API_URL  = (import.meta.env.VITE_API_URL || "").replace(/\/api\/?$/, "");
 
   const location = useLocation();
 
@@ -90,7 +90,8 @@ export default function Login() {
     if (!email || !password) { setError("Please enter email and password."); return; }
     setLoading(true);
     try {
-      const res  = await fetch(`${API_URL}/api/auth/login`, {
+      const endpoint = API_URL ? `${API_URL}/api/auth/login` : "/api/auth/login";
+      const res  = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
