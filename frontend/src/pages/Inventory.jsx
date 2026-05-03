@@ -116,7 +116,7 @@ export default function Inventory() {
       if (request?.status === "failed") {
         throw new Error("ESP request failed before completing the capture.");
       }
-      await new Promise((resolve) => setTimeout(resolve, 20000));
+      await new Promise((resolve) => setTimeout(resolve, 2500));
     }
     setCaptureStatus("processing");
     return null;
@@ -139,10 +139,7 @@ export default function Inventory() {
       setDetectionResult(null);
       setCaptureRequest(resp.data?.request || null);
       setCaptureStatus(resp.data?.request?.status || "pending");
-      const result = await waitForDetectionRecord(requestId, resp.data?.request?.requestedAt || resp.data?.request?.createdAt);
-      if (result) {
-        setDetectionResult(result);
-      }
+      void waitForDetectionRecord(requestId, resp.data?.request?.requestedAt || resp.data?.request?.createdAt);
     } catch (err) {
       console.error("ESP trigger failed:", err.message);
       setDetectionError(err.message || "Failed to trigger capture.");
@@ -153,8 +150,6 @@ export default function Inventory() {
 
   useEffect(() => {
     refreshInventoryView();
-    const intervalId = setInterval(refreshInventoryView, INVENTORY_REFRESH_INTERVAL_MS);
-    return () => clearInterval(intervalId);
   }, []);
 
   useEffect(() => {

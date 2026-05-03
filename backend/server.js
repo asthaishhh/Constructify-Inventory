@@ -7,7 +7,6 @@ import path from "path";
 import { fileURLToPath } from "url";
 import morgan from "morgan";
 import helmet from "helmet";
-import rateLimit from "express-rate-limit";
 // We'll use a lightweight custom sanitizer to avoid mutating getter-only req properties
 
 // ✅ Routes (your current folder structure)
@@ -101,14 +100,6 @@ if (SANITIZE_REQUESTS) {
 } else {
   if (!SANITIZER_SILENT) console.log("Request sanitization disabled by SANITIZE_REQUESTS=false");
 }
-// Rate limiter - global basic limit
-const globalLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 200, // limit each IP to 200 requests per windowMs
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-app.use(globalLimiter);
 
 app.use(express.json({ limit: "10mb" }));
 
