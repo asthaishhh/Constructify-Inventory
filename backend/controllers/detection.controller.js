@@ -1,9 +1,8 @@
 import DetectionRecord from "../models/DetectionRecord.js";
+import CaptureRequest from "../models/CaptureRequest.js";
 
 // Brick weight (per single brick) configurable via env BRICK_WEIGHT (number)
 const BRICK_WEIGHT = Number(process.env.BRICK_WEIGHT ?? 2.5);
-// ESP command URL and external detector URL
-const ESP_COMMAND_URL = process.env.ESP_COMMAND_URL || process.env.ESP_BASE_URL || null;
 const DETECTOR_URL = process.env.DETECTOR_URL || process.env.DETECTION_MODEL_URL || null;
 
 // Helper to post image (ArrayBuffer/Buffer/Blob) to detector
@@ -46,11 +45,14 @@ async function runDetectorWithImage(imageBuffer, filename = "image.jpg") {
 export async function reportRecord(req, res, next) {
   try {
     // Expecting { rawWeight, detectedCount, detectorResponse?, espResponse?, source? }
-    const { rawWeight, detectedCount, detectorResponse, espResponse, source } = req.body || {};
+    const { rawWeight, detectedCount, detectorResponse, espResponse, source, requestId, image } = req.body || {};
 
     const brickWeightUsed = Number(process.env.BRICK_WEIGHT ?? BRICK_WEIGHT) || BRICK_WEIGHT;
     const numericRaw = rawWeight != null ? Number(rawWeight) : undefined;
-    const numericDetected = detectedCount != null ? Number(detectedCount) : undefined;
+    const detectorPayload = detectorResponse || (image ? await runDetectorWithImage(Buffer.from(image, "base64"), "capture.jpg") : null);
+    const numericDetected = detectedCount != null
+      ? Number(detectedCount)
+      : Number(detectorPayload?.count ?? 0) || undefined;
 
     const calculatedCount = numericRaw != null && brickWeightUsed > 0 ? Math.round(numericRaw / brickWeightUsed) : undefined;
 
@@ -59,77 +61,62 @@ export async function reportRecord(req, res, next) {
       detectedCount: numericDetected,
       calculatedCount,
       brickWeightUsed,
-      detectorResponse,
+      detectorResponse: detectorPayload,
       espResponse,
+      requestId,
       source: source || "esp",
     });
 
     await record.save();
+
+    if (requestId && /^[a-fA-F0-9]{24}$/.test(String(requestId))) {
+      await CaptureRequest.findByIdAndUpdate(requestId, {
+        status: "completed",
+        completedAt: new Date(),
+        completedRecordId: record._id,
+      });
+    }
+
     return res.status(201).json({ success: true, record });
   } catch (err) {
     next(err);
   }
 }
 
-// Trigger ESP to capture image + weight, then run detector and save
+// Queue a capture request on Render so the ESP can poll and capture a fresh image.
 export async function triggerEsp(req, res, next) {
   try {
-    if (!ESP_COMMAND_URL) return res.status(400).json({ error: "ESP_COMMAND_URL not configured on server" });
+    const deviceId = String(req.body?.deviceId || req.query?.deviceId || "esp32cam-1");
+    const request = await CaptureRequest.create({ deviceId, status: "pending" });
+    return res.status(201).json({ success: true, request });
+  } catch (err) {
+    next(err);
+  }
+}
 
-    // Send capture command to ESP
-    const espResp = await fetch(ESP_COMMAND_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ command: "capture" }),
-    });
+// ESP polls this endpoint to claim the next pending capture request.
+export async function nextRequest(req, res, next) {
+  try {
+    const deviceId = String(req.query?.deviceId || "esp32cam-1");
+    const request = await CaptureRequest.findOneAndUpdate(
+      { deviceId, status: "pending" },
+      { status: "claimed", claimedAt: new Date() },
+      { sort: { requestedAt: 1 }, new: true }
+    ).lean();
 
-    if (!espResp.ok) {
-      const text = await espResp.text();
-      return res.status(502).json({ error: "ESP command failed", details: text });
+    if (!request) {
+      return res.json({ success: true, capture: false });
     }
 
-    const espJson = await espResp.json();
-
-    // Expect espJson to contain weight and either image (base64) or imageUrl
-    const rawWeight = espJson.weight ?? espJson.rawWeight ?? espJson.wt;
-
-    let detectorResult = null;
-    if (espJson.image) {
-      // base64 image expected
-      const b = Buffer.from(espJson.image, "base64");
-      detectorResult = await runDetectorWithImage(b, "capture.jpg");
-    } else if (espJson.imageUrl) {
-      try {
-        const fetchRes = await fetch(espJson.imageUrl);
-        if (fetchRes.ok) {
-          const ab = await fetchRes.arrayBuffer();
-          const buf = Buffer.from(ab);
-          detectorResult = await runDetectorWithImage(buf, "capture.jpg");
-        }
-      } catch (err) {
-        console.warn("Failed fetching imageUrl from ESP:", err && err.message);
-      }
-    }
-
-    const detectedCount = detectorResult?.count ?? espJson.detectedCount ?? espJson.detected ?? undefined;
-
-    const brickWeightUsed = Number(process.env.BRICK_WEIGHT ?? BRICK_WEIGHT) || BRICK_WEIGHT;
-    const numericRaw = rawWeight != null ? Number(rawWeight) : undefined;
-    const calculatedCount = numericRaw != null && brickWeightUsed > 0 ? Math.round(numericRaw / brickWeightUsed) : undefined;
-
-    const record = new DetectionRecord({
-      rawWeight: numericRaw,
-      detectedCount,
-      calculatedCount,
-      brickWeightUsed,
-      detectorResponse: detectorResult,
-      espResponse: espJson,
-      source: "esp",
+    return res.json({
+      success: true,
+      capture: true,
+      request: {
+        id: request._id,
+        deviceId: request.deviceId,
+        requestedAt: request.requestedAt,
+      },
     });
-
-    await record.save();
-
-    return res.status(201).json({ success: true, record });
   } catch (err) {
     next(err);
   }

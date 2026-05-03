@@ -9,6 +9,7 @@ const DetectionRecordSchema = new mongoose.Schema(
     brickWeightUsed: { type: Number, required: false },
     detectorResponse: { type: Object, required: false },
     espResponse: { type: Object, required: false },
+    requestId: { type: String, required: false, index: true },
     source: { type: String, enum: ["esp", "manual", "detector"], default: "esp" },
   },
   { timestamps: true }

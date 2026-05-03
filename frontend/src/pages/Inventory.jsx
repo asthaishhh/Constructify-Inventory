@@ -32,6 +32,8 @@ export default function Inventory() {
   const [detectionLoading, setDetectionLoading] = useState(false);
   const [detectionError, setDetectionError] = useState("");
   const [detectionResult, setDetectionResult] = useState(null);
+  const [detectionRecords, setDetectionRecords] = useState([]);
+  const [detectionsLoading, setDetectionsLoading] = useState(false);
 
   const API_URL = (import.meta.env.VITE_API_URL || "").replace(/\/api\/?$/, "");
 
@@ -47,7 +49,56 @@ export default function Inventory() {
     }
   };
 
+  const fetchDetections = async () => {
+    try {
+      const res = await axios.get(`${API_URL}/api/detections`);
+      setDetectionRecords(res.data?.records || []);
+    } catch (err) {
+      console.warn("Failed to load detection records:", err);
+    }
+  };
+
+  const waitForDetectionRecord = async (requestId, timeoutMs = 45000) => {
+    const startedAt = Date.now();
+    while (Date.now() - startedAt < timeoutMs) {
+      const res = await axios.get(`${API_URL}/api/detections/latest`);
+      const latest = res.data?.record;
+      if (latest && String(latest.requestId || "") === String(requestId)) {
+        setDetectionResult(latest);
+        await fetchDetections();
+        return latest;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 2500));
+    }
+    throw new Error("Timed out waiting for ESP to capture and report the image.");
+  };
+
+  // Trigger ESP through backend proxy, then fetch records
+  const triggerESPCapture = async () => {
+    setDetectionsLoading(true);
+    try {
+      const resp = await axios.post(`${API_URL}/api/detections/trigger-esp`, {
+        deviceId: "esp32cam-1",
+      });
+
+      const requestId = resp.data?.request?._id;
+      if (!requestId) {
+        throw new Error("No capture request was created on Render.");
+      }
+
+      setDetectionError("");
+      setDetectionResult(null);
+      await waitForDetectionRecord(requestId);
+    } catch (err) {
+      console.error("ESP trigger failed:", err.message);
+      setDetectionError(err.message || "Failed to trigger capture.");
+    } finally {
+      setDetectionsLoading(false);
+    }
+  };
+
   useEffect(() => { fetchMaterials(); }, []);
+  useEffect(() => { fetchDetections(); }, []);
 
   useEffect(() => {
     try {
@@ -422,68 +473,20 @@ export default function Inventory() {
               <div>
                 <h2 className="text-base sm:text-lg font-bold text-gray-900 dark:text-white">ESP32-CAM Detection</h2>
                 <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
-                  Send an image from ESP32-CAM to the hosted YOLO model and inspect the response here.
+                  Click Detect Now to request a fresh capture from ESP32, process it on Render, and show the latest result.
                 </p>
-              </div>
-              <div className="text-xs text-gray-400 dark:text-gray-500 break-all sm:text-right">
-                {DETECTOR_URL}
               </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-3">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5">
-                    ESP32 Image URL
-                  </label>
-                  <input
-                    type="url"
-                    value={detectionSource}
-                    onChange={(e) => {
-                      setDetectionSource(e.target.value);
-                      if (e.target.value.trim()) setDetectionFile(null);
-                    }}
-                    placeholder="http://192.168.x.x/capture or a hosted image URL"
-                    className={inputCls}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5">
-                    Upload Snapshot
-                  </label>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => detectionFileInputRef.current?.click()}
-                      className="px-4 py-2.5 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-xl font-semibold text-sm transition-all"
-                    >
-                      Choose File
-                    </button>
-                    <div className="flex-1 px-3 py-2.5 rounded-xl border border-dashed border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/40 text-xs text-gray-500 dark:text-gray-400 truncate flex items-center">
-                      {detectionFile ? detectionFile.name : "No file selected"}
-                    </div>
-                    <input
-                      ref={detectionFileInputRef}
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={handleDetectionFileChange}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex items-end">
-                <button
-                  type="button"
-                  onClick={handleRunDetection}
-                  disabled={detectionLoading}
-                  className="w-full px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:opacity-60 text-white rounded-xl font-semibold text-sm transition-all"
-                >
-                  {detectionLoading ? "Running detection..." : "Run Detection"}
-                </button>
-              </div>
+            <div className="flex items-end">
+              <button
+                type="button"
+                onClick={triggerESPCapture}
+                disabled={detectionsLoading}
+                className="w-full px-5 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-xl font-semibold text-sm transition-all"
+              >
+                {detectionsLoading ? "Requesting ESP capture..." : "Detect Now (ESP)"}
+              </button>
             </div>
 
             {detectionError && (
@@ -518,6 +521,42 @@ export default function Inventory() {
                 </div>
               </div>
             )}
+            {/* Latest ESP records */}
+            <div className="mt-4">
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">ESP Detection History</h3>
+              <div className="space-y-2">
+                {detectionRecords.slice(0,5).map((r) => (
+                  <div key={r._id} className="rounded-xl border border-gray-100 dark:border-gray-700 p-3 bg-white dark:bg-gray-800">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs text-gray-400">Time</p>
+                        <p className="font-medium text-sm text-gray-900 dark:text-white">{new Date(r.createdAt).toLocaleString()}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-400">Weight</p>
+                        <p className="font-medium text-sm">{r.rawWeight ?? "-"} kg</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-400">Detected</p>
+                        <p className="font-medium text-sm">{r.detectedCount ?? "-"}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-400">Calculated</p>
+                        <p className="font-medium text-sm">{r.calculatedCount ?? "-"}</p>
+                      </div>
+                      <div>
+                        {r.espResponse?.imageUrl ? (
+                          <a href={r.espResponse.imageUrl} target="_blank" rel="noreferrer" className="text-xs text-blue-600">View Image</a>
+                        ) : null}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                {detectionRecords.length === 0 && (
+                  <p className="text-xs text-gray-500">No detection records yet. Use "Detect Now (ESP)" to capture.</p>
+                )}
+              </div>
+            </div>
           </div>
         </section>
 
