@@ -1,10 +1,14 @@
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { resolve } from 'path'
 
 // https://vite.dev/config/
-export default defineConfig({
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), '')
+  const apiOrigin = (env.VITE_API_URL || 'https://constructify-inventory.onrender.com').replace(/\/api\/?$/, '')
+
+  return {
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
@@ -14,9 +18,10 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'http://localhost:5000',
+        target: apiOrigin,
         changeOrigin: true,
       },
     },
   },
+  }
 })
