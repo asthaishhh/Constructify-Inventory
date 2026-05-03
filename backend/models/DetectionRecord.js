@@ -10,7 +10,11 @@ const DetectionRecordSchema = new mongoose.Schema(
     detectorResponse: { type: Object, required: false },
     espResponse: { type: Object, required: false },
     requestId: { type: String, required: false, index: true },
-    source: { type: String, enum: ["esp", "manual", "detector"], default: "esp" },
+    source: {
+      type: String,
+      enum: ["esp", "manual", "detector", "esp-request", "ir-trigger", "manual-trigger", "trigger"],
+      default: "esp",
+    },
   },
   { timestamps: true }
 );

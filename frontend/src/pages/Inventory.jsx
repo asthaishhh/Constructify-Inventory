@@ -66,12 +66,18 @@ export default function Inventory() {
     return res.data?.request || null;
   };
 
+  const fetchLatestDetection = async () => {
+    const res = await axios.get(`${API_URL}/api/detections/latest`);
+    return res.data?.record || null;
+  };
+
   const refreshInventoryView = async () => {
     await Promise.all([fetchMaterials(), fetchDetections()]);
   };
 
-  const waitForDetectionRecord = async (requestId, timeoutMs = 45000) => {
+  const waitForDetectionRecord = async (requestId, requestStartedAt, timeoutMs = 180000) => {
     const startedAt = Date.now();
+    const requestStartedTime = requestStartedAt ? new Date(requestStartedAt).getTime() : startedAt;
     while (Date.now() - startedAt < timeoutMs) {
       const request = await fetchCaptureRequest(requestId);
       setCaptureRequest(request);
@@ -87,12 +93,33 @@ export default function Inventory() {
         return resolvedRecord;
       }
 
+      const latestRecord = await fetchLatestDetection();
+      const latestCreatedAt = latestRecord?.createdAt ? new Date(latestRecord.createdAt).getTime() : 0;
+      const latestDeviceId = latestRecord?.espResponse?.deviceId || "";
+      if (
+        latestRecord &&
+        latestCreatedAt >= requestStartedTime &&
+        (
+          String(latestRecord.requestId || "") === String(requestId) ||
+          latestRecord.source === "esp" ||
+          latestDeviceId === "esp32cam-1"
+        )
+      ) {
+        setDetectionResult(latestRecord);
+        await refreshInventoryView();
+        window.dispatchEvent(new CustomEvent("inventory:updated", {
+          detail: { source: "esp-detection", requestId },
+        }));
+        return latestRecord;
+      }
+
       if (request?.status === "failed") {
         throw new Error("ESP request failed before completing the capture.");
       }
-      await new Promise((resolve) => setTimeout(resolve, 2500));
+      await new Promise((resolve) => setTimeout(resolve, 20000));
     }
-    throw new Error("Timed out waiting for ESP to capture and report the image.");
+    setCaptureStatus("processing");
+    return null;
   };
 
   // Trigger ESP through backend proxy, then fetch records
@@ -112,7 +139,10 @@ export default function Inventory() {
       setDetectionResult(null);
       setCaptureRequest(resp.data?.request || null);
       setCaptureStatus(resp.data?.request?.status || "pending");
-      await waitForDetectionRecord(requestId);
+      const result = await waitForDetectionRecord(requestId, resp.data?.request?.requestedAt || resp.data?.request?.createdAt);
+      if (result) {
+        setDetectionResult(result);
+      }
     } catch (err) {
       console.error("ESP trigger failed:", err.message);
       setDetectionError(err.message || "Failed to trigger capture.");
