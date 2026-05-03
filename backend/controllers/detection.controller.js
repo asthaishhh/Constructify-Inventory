@@ -56,10 +56,45 @@ function serializeCaptureRequest(request) {
   };
 }
 
+async function resolveCaptureRequest({ requestId, deviceId, recordId }) {
+  const now = new Date();
+
+  if (requestId && /^[a-fA-F0-9]{24}$/.test(String(requestId))) {
+    const updated = await CaptureRequest.findByIdAndUpdate(
+      requestId,
+      {
+        status: "resolved",
+        completedAt: now,
+        resolvedAt: now,
+        completedRecordId: recordId,
+      },
+      { new: true }
+    );
+
+    if (updated) return updated;
+  }
+
+  if (deviceId) {
+    return CaptureRequest.findOneAndUpdate(
+      { deviceId, status: { $in: ["pending", "claimed"] } },
+      {
+        status: "resolved",
+        completedAt: now,
+        resolvedAt: now,
+        completedRecordId: recordId,
+      },
+      { sort: { requestedAt: -1 }, new: true }
+    );
+  }
+
+  return null;
+}
+
 export async function reportRecord(req, res, next) {
   try {
     // Expecting { rawWeight, detectedCount, detectorResponse?, espResponse?, source? }
     const { rawWeight, detectedCount, detectorResponse, espResponse, source, requestId, image } = req.body || {};
+    const deviceId = String(espResponse?.deviceId || req.body?.deviceId || req.query?.deviceId || "esp32cam-1");
 
     const brickWeightUsed = Number(process.env.BRICK_WEIGHT ?? BRICK_WEIGHT) || BRICK_WEIGHT;
     const numericRaw = rawWeight != null ? Number(rawWeight) : undefined;
@@ -83,14 +118,7 @@ export async function reportRecord(req, res, next) {
 
     await record.save();
 
-    if (requestId && /^[a-fA-F0-9]{24}$/.test(String(requestId))) {
-      await CaptureRequest.findByIdAndUpdate(requestId, {
-        status: "resolved",
-        completedAt: new Date(),
-        resolvedAt: new Date(),
-        completedRecordId: record._id,
-      });
-    }
+    await resolveCaptureRequest({ requestId, deviceId, recordId: record._id });
 
     return res.status(201).json({ success: true, record });
   } catch (err) {
